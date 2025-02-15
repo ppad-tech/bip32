@@ -1,0 +1,69 @@
+cabal-version:      3.0
+name:               ppad-bip32
+version:            0.1.0
+synopsis:           BIP32 hierarchical deterministic wallets.
+license:            MIT
+license-file:       LICENSE
+author:             Jared Tobin
+maintainer:         jared@ppad.tech
+category:           Cryptography
+build-type:         Simple
+tested-with:        GHC == 9.8.1
+extra-doc-files:    CHANGELOG
+description:
+  BIP32 hierarchical deterministic wallets
+
+source-repository head
+  type:     git
+  location: git.ppad.tech/bip32.git
+
+library
+  default-language: Haskell2010
+  hs-source-dirs:   lib
+  ghc-options:
+      -Wall
+  exposed-modules:
+      Crypto.HDKey.BIP32
+  build-depends:
+      base >= 4.9 && < 5
+    , bytestring >= 0.9 && < 0.13
+    , ppad-base58
+    , ppad-ripemd160
+    , ppad-secp256k1
+    , ppad-sha256
+    , ppad-sha512
+
+test-suite bip32-tests
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  hs-source-dirs:      test
+  main-is:             Main.hs
+
+  ghc-options:
+    -rtsopts -Wall -O2
+
+  build-depends:
+      base
+    , array
+    , bytestring
+    , ppad-bip32
+    , tasty
+    , tasty-quickcheck
+
+benchmark bip32-bench
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  hs-source-dirs:      bench
+  main-is:             Main.hs
+
+  ghc-options:
+    -rtsopts -O2 -Wall
+
+  build-depends:
+      base
+    , array
+    , bytestring
+    , criterion
+    , deepseq
+    , ppad-bip32
+
