@@ -12,7 +12,6 @@ import qualified Crypto.Hash.SHA512 as SHA512
 import qualified Crypto.Hash.RIPEMD160 as RIPEMD160
 import qualified Crypto.Curve.Secp256k1 as Secp256k1
 import Data.Bits ((.<<.), (.>>.), (.|.), (.&.))
-import qualified Data.Bits as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base58 as B58
 import qualified Data.ByteString.Builder as BSB
@@ -35,10 +34,10 @@ unroll i = case i of
     step m = Just (fi m, m .>>. 8)
 
 -- parse 32 bytes to a 256-bit integer
-parse256 :: BS.ByteString -> Maybe Integer
+parse256 :: BS.ByteString -> Integer
 parse256 bs@(BI.PS _ _ l)
-    | l == 32   = pure $! (BS.foldl' alg 0 bs)
-    | otherwise = Nothing
+    | l == 32   = BS.foldl' alg 0 bs
+    | otherwise = error "ppad-bip32 (parse256): invalid input"
   where
     alg !a (fi -> !b) = (a .<<. 8) .|. b
 
@@ -99,19 +98,19 @@ _master seed@(BI.PS _ _ l)
   | otherwise = do
       let i = SHA512.hmac "Bitcoin seed" seed
           (il, c) = BS.splitAt 32 i
-      s <- parse256 il
+          s = parse256 il
       pure $! (XPrv (X s c))
 
 -- private parent key -> private child key
-ckd_priv :: XPrv -> Word32 -> Maybe XPrv
-ckd_priv xprv@(XPrv (X sec cod)) i = do
+ckd_priv :: XPrv -> Word32 -> XPrv
+ckd_priv xprv@(XPrv (X sec cod)) i =
     let l = SHA512.hmac cod dat
         (il, ci) = BS.splitAt 32 l
-    pil <- parse256 il
-    let ki = Secp256k1.modQ (pil + sec)
-    if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negligible probability
-    then ckd_priv xprv (succ i)
-    else pure $! XPrv (X ki ci)
+        pil = parse256 il
+        ki  = Secp256k1.modQ (pil + sec)
+    in  if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negl
+        then ckd_priv xprv (succ i)
+        else XPrv (X ki ci)
   where
     dat | hardened i = BS.singleton 0x00 <> ser256 sec <> ser32 i
         | otherwise  =
@@ -126,9 +125,9 @@ ckd_pub xpub@(XPub (X pub cod)) i
       let dat = Secp256k1.serialize_point pub <> ser32 i
           l   = SHA512.hmac cod dat
           (il, ci) = BS.splitAt 32 l
-      pil <- parse256 il
-      let ki = Secp256k1.mul Secp256k1._CURVE_G pil `Secp256k1.add` pub
-      if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO
+          pil = parse256 il
+          ki = Secp256k1.mul_unsafe Secp256k1._CURVE_G pil `Secp256k1.add` pub
+      if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
       then ckd_pub xpub (succ i)
       else pure (XPub (X ki ci))
 
@@ -138,18 +137,53 @@ n (XPrv (X sec cod)) =
   let p = Secp256k1.mul Secp256k1._CURVE_G sec
   in  XPub (X p cod)
 
--- wallets --------------------------------------------------------------------
+-- hierarchical deterministic keys --------------------------------------------
 
-data ExtendedKey = ExtendedKey {
-    ek_pair   :: !(Either XPub XPrv)
+data HDKey = HDKey {
+    ek_key    :: !(Either XPub XPrv)
   , ek_depth  :: !Word8
   , ek_parent :: !(Maybe BS.ByteString) -- parent fingerprint
-  , ek_child  :: !Word32
+  , ek_child  :: !BS.ByteString
   }
 
-serialize_mainnet :: ExtendedKey -> BS.ByteString
-serialize_mainnet x@ExtendedKey {..} =
-    let pay = BS.toStrict . BSB.toLazyByteString $ case ek_pair of
+master :: BS.ByteString -> Maybe HDKey
+master seed = do
+  m <- _master seed
+  pure $! HDKey {
+      ek_key = Right m
+    , ek_depth = 0
+    , ek_parent = Nothing
+    , ek_child = ser32 0
+    }
+
+derive_priv :: HDKey -> Word32 -> Maybe HDKey
+derive_priv HDKey {..} i = case ek_key of
+  Left _ -> Nothing
+  Right xprv -> pure $!
+    let key   = Right (ckd_priv xprv i)
+        depth = ek_depth + 1
+        parent = Just (fingerprint xprv)
+        child = ser32 i
+    in  HDKey key depth parent child
+
+derive_pub :: HDKey -> Word32 -> Maybe HDKey
+derive_pub HDKey {..} i = do
+  (key, parent) <- case ek_key of
+    Left xpub  -> do
+      pub <- ckd_pub xpub i
+      pure (pub, fingerprint xpub)
+    Right xprv ->
+      let pub = n (ckd_priv xprv i)
+      in  pure (pub, fingerprint xprv)
+  let depth = ek_depth + 1
+      child = ser32 i
+  pure $ HDKey (Left key) depth (Just parent) child
+
+-- serialization --------------------------------------------------------------
+
+serialize_mainnet :: HDKey -> BS.ByteString
+serialize_mainnet x@HDKey {..} =
+    let pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
           Left _  -> _serialize _MAINNET_PUBLIC x
           Right _ -> _serialize _MAINNET_PRIVATE x
         kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
@@ -158,9 +192,9 @@ serialize_mainnet x@ExtendedKey {..} =
     _MAINNET_PUBLIC  = 0x0488B21E
     _MAINNET_PRIVATE = 0x0488ADE4
 
-serialize_testnet :: ExtendedKey -> BS.ByteString
-serialize_testnet x@ExtendedKey {..} =
-    let pay = BS.toStrict . BSB.toLazyByteString $ case ek_pair of
+serialize_testnet :: HDKey -> BS.ByteString
+serialize_testnet x@HDKey {..} =
+    let pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
           Left _  -> _serialize _TESTNET_PUBLIC x
           Right _ -> _serialize _TESTNET_PRIVATE x
         kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
@@ -169,15 +203,15 @@ serialize_testnet x@ExtendedKey {..} =
     _TESTNET_PUBLIC = 0x043587CF
     _TESTNET_PRIVATE = 0x04358394
 
-_serialize :: Word32 -> ExtendedKey -> BSB.Builder
-_serialize version ExtendedKey {..} =
+_serialize :: Word32 -> HDKey -> BSB.Builder
+_serialize version HDKey {..} =
      BSB.word32BE version
   <> BSB.word8 ek_depth
   <> case ek_parent of
        Nothing -> BSB.word32BE 0x0000_0000
        Just k  -> BSB.byteString k
-  <> BSB.word32BE ek_child
-  <> case ek_pair of
+  <> BSB.byteString ek_child
+  <> case ek_key of
        Left (XPub (X pub cod)) ->
             BSB.byteString cod
          <> BSB.byteString (Secp256k1.serialize_point pub)
@@ -185,15 +219,5 @@ _serialize version ExtendedKey {..} =
             BSB.byteString cod
          <> BSB.word8 0x00
          <> BSB.byteString (ser256 sec)
-
-master :: BS.ByteString -> Maybe ExtendedKey
-master seed = do
-  m <- _master seed
-  pure $! ExtendedKey {
-      ek_pair = Right m
-    , ek_depth = 0
-    , ek_parent = Nothing
-    , ek_child = 0
-    }
 
 
