@@ -73,7 +73,7 @@ class Extended k where
   identifier  :: k -> BS.ByteString
 
   fingerprint :: k -> BS.ByteString
-  fingerprint = BS.take 32 . identifier
+  fingerprint = BS.take 4 . identifier
 
 instance Extended XPub where
   identifier (XPub (X pub _)) =
