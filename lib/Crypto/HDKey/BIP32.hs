@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BinaryLiterals #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -103,13 +104,13 @@ _master seed@(BI.PS _ _ l)
 
 -- private parent key -> private child key
 ckd_priv :: XPrv -> Word32 -> XPrv
-ckd_priv xprv@(XPrv (X sec cod)) i =
+ckd_priv _xprv@(XPrv (X sec cod)) i =
     let l = SHA512.hmac cod dat
         (il, ci) = BS.splitAt 32 l
         pil = parse256 il
         ki  = Secp256k1.modQ (pil + sec)
     in  if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negl
-        then ckd_priv xprv (succ i)
+        then ckd_priv _xprv (succ i)
         else XPrv (X ki ci)
   where
     dat | hardened i = BS.singleton 0x00 <> ser256 sec <> ser32 i
@@ -119,7 +120,7 @@ ckd_priv xprv@(XPrv (X sec cod)) i =
 
 -- public parent key -> public child key
 ckd_pub :: XPub -> Word32 -> Maybe XPub
-ckd_pub xpub@(XPub (X pub cod)) i
+ckd_pub _xpub@(XPub (X pub cod)) i
   | hardened i = Nothing
   | otherwise = do
       let dat = Secp256k1.serialize_point pub <> ser32 i
@@ -128,7 +129,7 @@ ckd_pub xpub@(XPub (X pub cod)) i
           pil = parse256 il
           ki = Secp256k1.mul_unsafe Secp256k1._CURVE_G pil `Secp256k1.add` pub
       if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
-      then ckd_pub xpub (succ i)
+      then ckd_pub _xpub (succ i)
       else pure (XPub (X ki ci))
 
 -- private parent key -> public child key
@@ -175,49 +176,71 @@ master_pub seed = do
 derive_priv :: HDKey -> Word32 -> Maybe HDKey
 derive_priv HDKey {..} i = case ek_key of
   Left _ -> Nothing
-  Right xprv -> pure $!
-    let key   = Right (ckd_priv xprv i)
+  Right _xprv -> pure $!
+    let key   = Right (ckd_priv _xprv i)
         depth = ek_depth + 1
-        parent = Just (fingerprint xprv)
+        parent = Just (fingerprint _xprv)
         child = ser32 i
     in  HDKey key depth parent child
 
 derive_pub :: HDKey -> Word32 -> Maybe HDKey
 derive_pub HDKey {..} i = do
   (key, parent) <- case ek_key of
-    Left xpub  -> do
-      pub <- ckd_pub xpub i
-      pure (pub, fingerprint xpub)
-    Right xprv ->
-      let pub = n (ckd_priv xprv i)
-      in  pure (pub, fingerprint xprv)
+    Left _xpub  -> do
+      pub <- ckd_pub _xpub i
+      pure (pub, fingerprint _xpub)
+    Right _xprv ->
+      let pub = n (ckd_priv _xprv i)
+      in  pure (pub, fingerprint _xprv)
   let depth = ek_depth + 1
       child = ser32 i
   pure $ HDKey (Left key) depth (Just parent) child
 
 -- serialization --------------------------------------------------------------
 
-serialize_mainnet :: HDKey -> BS.ByteString
-serialize_mainnet x@HDKey {..} =
-    let pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
-          Left _  -> _serialize _MAINNET_PUBLIC x
-          Right _ -> _serialize _MAINNET_PRIVATE x
-        kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
-    in  B58.encode (pay <> kek)
-  where
-    _MAINNET_PUBLIC  = 0x0488B21E
-    _MAINNET_PRIVATE = 0x0488ADE4
+xpub :: HDKey -> BS.ByteString
+xpub x@HDKey {..} =
+  let _MAINNET_PUBLIC  = 0x0488B21E
+      pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
+        Left _  -> _serialize _MAINNET_PUBLIC x
+        Right e -> _serialize _MAINNET_PUBLIC HDKey {
+            ek_key = Left (n e)
+          , ..
+          }
+      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
+  in  B58.encode (pay <> kek)
 
-serialize_testnet :: HDKey -> BS.ByteString
-serialize_testnet x@HDKey {..} =
-    let pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
-          Left _  -> _serialize _TESTNET_PUBLIC x
-          Right _ -> _serialize _TESTNET_PRIVATE x
-        kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
-    in  B58.encode (pay <> kek)
-  where
-    _TESTNET_PUBLIC = 0x043587CF
-    _TESTNET_PRIVATE = 0x04358394
+-- XX make safer?
+
+xprv :: HDKey -> BS.ByteString
+xprv x@HDKey {..} =
+  let _MAINNET_PRIVATE = 0x0488ADE4
+      pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
+        Left _  -> error "ppad-bip32 (xprv): no private key"
+        Right _ -> _serialize _MAINNET_PRIVATE x
+      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
+  in  B58.encode (pay <> kek)
+
+tpub :: HDKey -> BS.ByteString
+tpub x@HDKey {..} =
+  let _TESTNET_PUBLIC = 0x043587CF
+      pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
+        Left _  -> _serialize _TESTNET_PUBLIC x
+        Right e -> _serialize _TESTNET_PUBLIC HDKey {
+            ek_key = Left (n e)
+          , ..
+          }
+      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
+  in  B58.encode (pay <> kek)
+
+tprv :: HDKey -> BS.ByteString
+tprv x@HDKey {..} =
+  let _TESTNET_PRIVATE = 0x04358394
+      pay = BS.toStrict . BSB.toLazyByteString $ case ek_key of
+        Left _  -> error "ppad-bip32 (tprv): no private key"
+        Right _ -> _serialize _TESTNET_PRIVATE x
+      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
+  in  B58.encode (pay <> kek)
 
 _serialize :: Word32 -> HDKey -> BSB.Builder
 _serialize version HDKey {..} =
@@ -235,5 +258,4 @@ _serialize version HDKey {..} =
             BSB.byteString cod
          <> BSB.word8 0x00
          <> BSB.byteString (ser256 sec)
-
 
