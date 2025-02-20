@@ -34,6 +34,37 @@
         "type": "github"
       }
     },
+    "ppad-base16": {
+      "inputs": {
+        "flake-utils": [
+          "ppad-base16",
+          "ppad-nixpkgs",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "ppad-base16",
+          "ppad-nixpkgs",
+          "nixpkgs"
+        ],
+        "ppad-nixpkgs": [
+          "ppad-nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1739979569,
+        "narHash": "sha256-omEcmgzRlzIE5Vdty0/SskEcR2f7OtcHzGFE4i1dI60=",
+        "ref": "master",
+        "rev": "4439e0efafbb5185bd7d9bfb352a17c2a31b96b4",
+        "revCount": 15,
+        "type": "git",
+        "url": "git://git.ppad.tech/base16.git"
+      },
+      "original": {
+        "ref": "master",
+        "type": "git",
+        "url": "git://git.ppad.tech/base16.git"
+      }
+    },
     "ppad-base58": {
       "inputs": {
         "flake-utils": [
@@ -271,6 +302,7 @@
           "ppad-nixpkgs",
           "nixpkgs"
         ],
+        "ppad-base16": "ppad-base16",
         "ppad-base58": "ppad-base58",
         "ppad-nixpkgs": "ppad-nixpkgs",
         "ppad-ripemd160": "ppad-ripemd160",

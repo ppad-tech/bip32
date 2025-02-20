@@ -7,6 +7,13 @@
       url  = "git://git.ppad.tech/nixpkgs.git";
       ref  = "master";
     };
+    ppad-base16 = {
+      type = "git";
+      url  = "git://git.ppad.tech/base16.git";
+      ref  = "master";
+      inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
+      inputs.ppad-sha256.follows = "ppad-sha256";
+    };
     ppad-base58 = {
       type = "git";
       url  = "git://git.ppad.tech/base58.git";
@@ -46,7 +53,7 @@
 
   outputs = { self, nixpkgs, flake-utils, ppad-nixpkgs
             , ppad-sha256, ppad-sha512, ppad-ripemd160
-            , ppad-base58
+            , ppad-base16, ppad-base58
             , ppad-secp256k1 }:
     flake-utils.lib.eachDefaultSystem (system:
       let
@@ -60,6 +67,7 @@
           ppad-sha256 = ppad-sha256.packages.${system}.default;
           ppad-sha512 = ppad-sha512.packages.${system}.default;
           ppad-ripemd160 = ppad-ripemd160.packages.${system}.default;
+          ppad-base16 = ppad-base16.packages.${system}.default;
           ppad-base58 = ppad-base58.packages.${system}.default;
           ppad-secp256k1 = ppad-secp256k1.packages.${system}.default;
         });
