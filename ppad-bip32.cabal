@@ -46,9 +46,11 @@ test-suite bip32-tests
       base
     , array
     , bytestring
+    , ppad-base16
+    , ppad-base58
     , ppad-bip32
     , tasty
-    , tasty-quickcheck
+    , tasty-hunit
 
 benchmark bip32-bench
   type:                exitcode-stdio-1.0
