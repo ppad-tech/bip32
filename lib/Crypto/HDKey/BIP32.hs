@@ -145,12 +145,28 @@ data HDKey = HDKey {
   , ek_parent :: !(Maybe BS.ByteString) -- parent fingerprint
   , ek_child  :: !BS.ByteString
   }
+  deriving (Eq, Show)
 
-master :: BS.ByteString -> Maybe HDKey
-master seed = do
+instance Extended HDKey where
+  identifier (HDKey ekey _ _ _) = case ekey of
+    Left l -> identifier l
+    Right r -> identifier r
+
+master_priv :: BS.ByteString -> Maybe HDKey
+master_priv seed = do
   m <- _master seed
   pure $! HDKey {
       ek_key = Right m
+    , ek_depth = 0
+    , ek_parent = Nothing
+    , ek_child = ser32 0
+    }
+
+master_pub :: BS.ByteString -> Maybe HDKey
+master_pub seed = do
+  m <- _master seed
+  pure $! HDKey {
+      ek_key = Left (n m)
     , ek_depth = 0
     , ek_parent = Nothing
     , ek_child = ser32 0
