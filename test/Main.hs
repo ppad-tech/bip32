@@ -13,6 +13,8 @@ main :: IO ()
 main = defaultMain $ testGroup "BIP32 vectors" [
     vector_1
   , vector_2
+  , vector_3
+  , vector_4
   ]
 
 seed_1 :: BS.ByteString
@@ -98,7 +100,6 @@ seed_2 = case B16.decode "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1
   Nothing -> error "bang"
   Just b -> b
 
-
 vector_2 :: TestTree
 vector_2 = H.testCase "BIP32 vector 2" $ do
   let Just mas = master seed_2
@@ -134,5 +135,48 @@ vector_2 = H.testCase "BIP32 vector 2" $ do
     (xpub _m_0_2147483647'_1_2147483646'_2)
   H.assertEqual "m/0/2147483647'/1/2147483646'/2" "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j"
     (xprv _m_0_2147483647'_1_2147483646'_2)
+
+seed_3 :: BS.ByteString
+seed_3 = case B16.decode "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be" of
+  Nothing -> error "bang"
+  Just b -> b
+
+vector_3 :: TestTree
+vector_3 = H.testCase "BIP32 vector 3" $ do
+  let Just mas = master seed_3
+      _m = derive_partial mas "m"
+  H.assertEqual "M" "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
+    (xpub _m)
+  H.assertEqual "m" "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6"
+    (xprv _m)
+  let _m_0' = derive_partial mas "m/0'"
+  H.assertEqual "M/0'" "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+    (xpub _m_0')
+  H.assertEqual "m/0'" "xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L"
+    (xprv _m_0')
+
+seed_4 :: BS.ByteString
+seed_4 = case B16.decode "3ddd5602285899a946114506157c7997e5444528f3003f6134712147db19b678" of
+  Nothing -> error "bang"
+  Just b -> b
+
+vector_4 :: TestTree
+vector_4 = H.testCase "BIP32 vector 4" $ do
+  let Just mas = master seed_4
+      _m = derive_partial mas "m"
+  H.assertEqual "M" "xpub661MyMwAqRbcGczjuMoRm6dXaLDEhW1u34gKenbeYqAix21mdUKJyuyu5F1rzYGVxyL6tmgBUAEPrEz92mBXjByMRiJdba9wpnN37RLLAXa"
+    (xpub _m)
+  H.assertEqual "m" "xprv9s21ZrQH143K48vGoLGRPxgo2JNkJ3J3fqkirQC2zVdk5Dgd5w14S7fRDyHH4dWNHUgkvsvNDCkvAwcSHNAQwhwgNMgZhLtQC63zxwhQmRv"
+    (xprv _m)
+  let _m_0' = derive_partial mas "m/0'"
+  H.assertEqual "M/0'" "xpub69AUMk3qDBi3uW1sXgjCmVjJ2G6WQoYSnNHyzkmdCHEhSZ4tBok37xfFEqHd2AddP56Tqp4o56AePAgCjYdvpW2PU2jbUPFKsav5ut6Ch1m"
+    (xpub _m_0')
+  H.assertEqual "m/0'" "xprv9vB7xEWwNp9kh1wQRfCCQMnZUEG21LpbR9NPCNN1dwhiZkjjeGRnaALmPXCX7SgjFTiCTT6bXes17boXtjq3xLpcDjzEuGLQBM5ohqkao9G"
+    (xprv _m_0')
+  let _m_0'_1' = derive_partial mas "m/0'/1'"
+  H.assertEqual "M/0'/1'" "xpub6BJA1jSqiukeaesWfxe6sNK9CCGaujFFSJLomWHprUL9DePQ4JDkM5d88n49sMGJxrhpjazuXYWdMf17C9T5XnxkopaeS7jGk1GyyVziaMt"
+    (xpub _m_0'_1')
+  H.assertEqual "m/0'/1'" "xprv9xJocDuwtYCMNAo3Zw76WENQeAS6WGXQ55RCy7tDJ8oALr4FWkuVoHJeHVAcAqiZLE7Je3vZJHxspZdFHfnBEjHqU5hG1Jaj32dVoS6XLT1"
+    (xprv _m_0'_1')
 
 
