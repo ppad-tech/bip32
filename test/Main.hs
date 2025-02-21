@@ -55,7 +55,7 @@ xprv_1_m_0'_1_2'_2_1000000000 = "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6u
 
 vector_1 :: TestTree
 vector_1 = H.testCase "seed 1" $ do
-  let Just _m = master_priv seed_1
+  let Just _m = master seed_1
   H.assertEqual "M" xpub_1_m (xpub _m)
   H.assertEqual "m" xprv_1_m (xprv _m)
   let Just _m_0' = derive_priv _m 0x80000000
