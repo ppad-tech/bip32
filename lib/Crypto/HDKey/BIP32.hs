@@ -186,6 +186,25 @@ derive_pub HDKey {..} i = do
       child = ser32 i
   pure $ HDKey (Left key) depth (Just parent) child
 
+-- derivation path expression -------------------------------------------------
+
+data Path =
+    M
+  | !Path :| !Word32 -- hardened
+  | !Path :/ !Word32
+  deriving (Eq, Show)
+
+derive :: HDKey -> Path -> Maybe HDKey
+derive hd = go where
+  go = \case
+    M -> pure hd
+    pat :| i -> do
+      hdkey <- go pat
+      derive_priv hdkey (0x8000_0000 + i) -- 2 ^ 31
+    pat :/ i -> do
+      hdkey <- go pat
+      derive_priv hdkey i
+
 -- serialization --------------------------------------------------------------
 
 xpub :: HDKey -> BS.ByteString
