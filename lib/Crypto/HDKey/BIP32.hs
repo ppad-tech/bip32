@@ -14,6 +14,7 @@ import qualified Crypto.Hash.RIPEMD160 as RIPEMD160
 import qualified Crypto.Curve.Secp256k1 as Secp256k1
 import Data.Bits ((.<<.), (.>>.), (.|.), (.&.))
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Base58 as B58
 import qualified Data.ByteString.Builder as BSB
 import qualified Data.ByteString.Internal as BI
@@ -29,10 +30,10 @@ fi = fromIntegral
 unroll :: Integer -> BS.ByteString
 unroll i = case i of
     0 -> BS.singleton 0
-    _ -> BS.reverse $ BS.unfoldr step i
+    _ -> BS.reverse $ BS.unfoldr coalg i
   where
-    step 0 = Nothing
-    step m = Just (fi m, m .>>. 8)
+    coalg 0 = Nothing
+    coalg m = Just (fi m, m .>>. 8)
 
 -- parse 32 bytes to a 256-bit integer
 parse256 :: BS.ByteString -> Integer
@@ -194,16 +195,49 @@ data Path =
   | !Path :/ !Word32
   deriving (Eq, Show)
 
-derive :: HDKey -> Path -> Maybe HDKey
-derive hd = go where
-  go = \case
-    M -> pure hd
-    pat :| i -> do
-      hdkey <- go pat
-      derive_priv hdkey (0x8000_0000 + i) -- 2 ^ 31
-    pat :/ i -> do
-      hdkey <- go pat
-      derive_priv hdkey i
+parse :: BS.ByteString -> Maybe Path
+parse bs = case BS.uncons bs of
+    Nothing -> Nothing
+    Just (h, t)
+      | h == 109  -> go M t -- == 'm'
+      | otherwise -> Nothing
+  where
+    child :: Path -> BS.ByteString -> Maybe (Path, BS.ByteString)
+    child pat b = case B8.readInt b of
+      Nothing -> Nothing
+      Just (fi -> i, etc) -> case BS.uncons etc of
+        Nothing -> Just $! (pat :/ i, mempty)
+        Just (h, t)
+          | h == 39 -> Just $! (pat :| i, t) -- '
+          | otherwise -> Just $! (pat :/ i, etc)
+
+    go pat b = case BS.uncons b of
+      Nothing -> Just pat
+      Just (h, t)
+        | h == 47 -> do -- /
+            (npat, etc) <- child pat t
+            go npat etc
+        | otherwise ->
+            Nothing
+
+derive :: HDKey -> BS.ByteString -> Maybe HDKey
+derive hd pat = case parse pat of
+    Nothing -> Nothing
+    Just p  -> go p
+  where
+    go = \case
+      M -> pure hd
+      p :| i -> do
+        hdkey <- go p
+        derive_priv hdkey (0x8000_0000 + i) -- 2 ^ 31
+      p :/ i -> do
+        hdkey <- go p
+        derive_priv hdkey i
+
+derive_partial :: HDKey -> BS.ByteString -> HDKey
+derive_partial hd pat = case derive hd pat of
+  Nothing -> error "ppad-bip32 (derive_partial): couldn't derive extended key"
+  Just hdkey -> hdkey
 
 -- serialization --------------------------------------------------------------
 
