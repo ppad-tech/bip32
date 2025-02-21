@@ -153,21 +153,11 @@ instance Extended HDKey where
     Left l -> identifier l
     Right r -> identifier r
 
-master_priv :: BS.ByteString -> Maybe HDKey
-master_priv seed = do
+master :: BS.ByteString -> Maybe HDKey
+master seed = do
   m <- _master seed
   pure $! HDKey {
       ek_key = Right m
-    , ek_depth = 0
-    , ek_parent = Nothing
-    , ek_child = ser32 0
-    }
-
-master_pub :: BS.ByteString -> Maybe HDKey
-master_pub seed = do
-  m <- _master seed
-  pure $! HDKey {
-      ek_key = Left (n m)
     , ek_depth = 0
     , ek_parent = Nothing
     , ek_child = ser32 0
@@ -209,8 +199,6 @@ xpub x@HDKey {..} =
           }
       kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
   in  B58.encode (pay <> kek)
-
--- XX make safer?
 
 xprv :: HDKey -> BS.ByteString
 xprv x@HDKey {..} =
