@@ -58,29 +58,29 @@ vector_1 = H.testCase "seed 1" $ do
   let Just _m = master seed_1
   H.assertEqual "M" xpub_1_m (xpub _m)
   H.assertEqual "m" xprv_1_m (xprv _m)
-  let Just _m_0' = derive_priv _m 0x80000000
+  let Just _m_0' = derive_child_priv _m 0x80000000
   H.assertEqual "M/0'" xpub_1_m_0' (xpub _m_0')
   H.assertEqual "m/0'" xprv_1_m_0' (xprv _m_0')
   H.assertEqual "M/0', path" xpub_1_m_0' (xpub (derive_partial _m "m/0'"))
   H.assertEqual "m/0', path" xprv_1_m_0' (xprv (derive_partial _m "m/0'"))
-  let Just _m_0'_1 = derive_priv _m_0' 1
+  let Just _m_0'_1 = derive_child_priv _m_0' 1
   H.assertEqual "M/0'/1" xpub_1_m_0'_1 (xpub _m_0'_1)
   H.assertEqual "m/0'/1" xprv_1_m_0'_1 (xprv _m_0'_1)
   H.assertEqual "M/0'/1" xpub_1_m_0'_1 (xpub (derive_partial _m "m/0'/1"))
   H.assertEqual "m/0'/1" xprv_1_m_0'_1 (xprv (derive_partial _m "m/0'/1"))
-  let Just _m_0'_1_2' = derive_priv _m_0'_1 (0x80000000 + 2)
+  let Just _m_0'_1_2' = derive_child_priv _m_0'_1 (0x80000000 + 2)
   H.assertEqual "M/0'/1/2'" xpub_1_m_0'_1_2' (xpub _m_0'_1_2')
   H.assertEqual "m/0'/1/2'" xprv_1_m_0'_1_2' (xprv _m_0'_1_2')
   H.assertEqual "M/0'/1/2'" xpub_1_m_0'_1_2' (xpub (derive_partial _m "m/0'/1/2'"))
   H.assertEqual "m/0'/1/2'" xprv_1_m_0'_1_2' (xprv (derive_partial _m "m/0'/1/2'"))
-  let Just _m_0'_1_2'_2 = derive_priv _m_0'_1_2' 2
+  let Just _m_0'_1_2'_2 = derive_child_priv _m_0'_1_2' 2
   H.assertEqual "M/0'/1/2'/2" xpub_1_m_0'_1_2'_2 (xpub _m_0'_1_2'_2)
   H.assertEqual "m/0'/1/2'/2" xprv_1_m_0'_1_2'_2 (xprv _m_0'_1_2'_2)
   H.assertEqual "M/0'/1/2'/2" xpub_1_m_0'_1_2'_2
     (xpub (derive_partial _m "m/0'/1/2'/2"))
   H.assertEqual "m/0'/1/2'/2" xprv_1_m_0'_1_2'_2
     (xprv (derive_partial _m "m/0'/1/2'/2"))
-  let Just _m_0'_1_2'_2_1000000000 = derive_priv _m_0'_1_2'_2 1000000000
+  let Just _m_0'_1_2'_2_1000000000 = derive_child_priv _m_0'_1_2'_2 1000000000
   H.assertEqual "M/0'/1/2'/2/1000000000" xpub_1_m_0'_1_2'_2_1000000000
     (xpub _m_0'_1_2'_2_1000000000)
   H.assertEqual "m/0'/1/2'/2/1000000000" xprv_1_m_0'_1_2'_2_1000000000
