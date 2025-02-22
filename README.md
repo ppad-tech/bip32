@@ -15,24 +15,24 @@ A sample GHCi session:
   > import qualified Crypto.HDKey.BIP32 as BIP32
   >
   > -- derive a master node from a master seed
-  > let Just m = master "plenty of entropy"
+  > let Just m = BIP32.master "plenty of entropy"
   >
   > -- use 'xpub', 'xprv', etc. to serialize
-  > xpub m
+  > BIP32.xpub m
   "xpub661MyMwAqRbcG6TPJvVs1yKFJGtN4vi785g2xDacQ9Luyw3gyAyvY5DNatPzfsUQK4nTUAmQboxw3WYDHtY4vfcGJR4FAuLLaUp2t7ejhoC"
   >
   > -- derive child nodes via a path
-  > let child = derive_partial m "m/44'/0'/0'/0/0"
-  > xpub child
+  > let child = BIP32.derive_partial m "m/44'/0'/0'/0/0"
+  > BIP32.xpub child
   "xpub6GEwJiJFou5PH6LL8cagArvArrXhSaq35XWnT73CShNRBJa9jxHsWnPsydvmN2vcPBg9KHfRyYLiYnUKCJ8ncba4CgzF56n4kpkqMTSFy35"
   >
   > -- use the 'hd_key' record to extract the extended key
-  > let Right (XPrv (X sec cod)) = hd_key child
+  > let Right (BIP32.XPrv (BIP32.X sec cod)) = BIP32.hd_key child
   > sec
   82064013501759548583899633460204676801585795402966146917762774758050650403971
   >
   > -- use 'parse' to import an extended key
-  > let Just hd = parse (xprv child)
+  > let Just hd = BIP32.parse (BIP32.xprv child)
   > hd == child
   True
 ```
