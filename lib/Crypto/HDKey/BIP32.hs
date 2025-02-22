@@ -13,7 +13,8 @@
 -- Maintainer: Jared Tobin <jared@ppad.tech>
 --
 -- [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
--- hierarchical deterministic wallets.
+-- hierarchical deterministic wallets and extended keys, with support for
+-- both serialization and parsing.
 
 module Crypto.HDKey.BIP32 (
   -- * Hierarchical deterministic keys
@@ -111,6 +112,7 @@ newtype XPub = XPub (X Secp256k1.Projective)
 newtype XPrv = XPrv (X Integer)
   deriving (Eq, Show)
 
+-- | Key types supporting identifier/fingerprint calculation.
 class Extended k where
   -- | Calculate the identifier for an extended key.
   identifier  :: k -> BS.ByteString
@@ -186,7 +188,7 @@ n (XPrv (X sec cod)) =
 
 -- | A BIP32 hierarchical deterministic key.
 --
---   This differs from the lower-level "extended" key in that it carries all
+--   This differs from lower-level "extended" keys in that it carries all
 --   information required for serialization.
 data HDKey = HDKey {
     hd_key    :: !(Either XPub XPrv) -- ^ extended public or private key
@@ -281,6 +283,9 @@ parse_path bs = case BS.uncons bs of
 --
 --   Fails with 'Nothing' if derivation is impossible, or if the
 --   provided path is invalid.
+--
+--   >>> let hd = master "my very secret master seed"
+--   >>> derive hd "m/44'/0'/0'/0/0"
 derive
   :: HDKey
   -> BS.ByteString -- ^ derivation path
@@ -302,6 +307,9 @@ derive hd pat = case parse_path pat of
 --
 --   Fails with 'error' if derivation is impossible, or if the provided
 --   path is invalid.
+--
+--   >>> let hd = master "my very secret master seed"
+--   >>> derive hd "m/44'/0'/0'/0/0"
 derive_partial
   :: HDKey
   -> BS.ByteString
