@@ -70,4 +70,5 @@ benchmark bip32-bench
     , criterion
     , deepseq
     , ppad-bip32
+    , ppad-secp256k1
 
