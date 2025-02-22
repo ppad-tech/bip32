@@ -49,8 +49,7 @@ garbage-collected language under an optimizing compiler such as GHC, in
 which strict constant-timeness can be [challenging to achieve][const].
 
 The implementation within passes the official [BIP32 test
-vectors](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#
-test-vectors), and all derivations involving secret keys execute
+vectors](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#test-vectors), and all derivations involving secret keys execute
 *algorithmically* in constant time -- see the "Security" notes in the
 README of [ppad-secp256k1][secp] for more details.
 
