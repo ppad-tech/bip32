@@ -12,7 +12,6 @@
       url  = "git://git.ppad.tech/base16.git";
       ref  = "master";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
-      inputs.ppad-sha256.follows = "ppad-sha256";
     };
     ppad-base58 = {
       type = "git";
