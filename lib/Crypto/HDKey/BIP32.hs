@@ -14,7 +14,7 @@
 --
 -- [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
 -- hierarchical deterministic wallets and extended keys, with support for
--- both serialization and parsing.
+-- serialization and parsing.
 
 module Crypto.HDKey.BIP32 (
   -- * Hierarchical deterministic keys
