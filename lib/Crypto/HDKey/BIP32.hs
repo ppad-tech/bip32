@@ -6,16 +6,27 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 
+-- |
+-- Module: Crypto.HDKey.BIP32
+-- Copyright: (c) 2025 Jared Tobin
+-- License: MIT
+-- Maintainer: Jared Tobin <jared@ppad.tech>
+--
+-- [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
+-- hierarchical deterministic wallets.
+
 module Crypto.HDKey.BIP32 (
   -- * Hierarchical deterministic keys
     HDKey(..)
   , master
 
-  -- * Child key derivation functions
-  , derive_child_pub
-  , derive_child_priv
+  -- * Extended keys
+  , Extended(..)
+  , XPub(..)
+  , XPrv(..)
+  , X(..)
 
-  -- * Derivation path
+  -- * Child derivation via path
   , derive
   , derive_partial
 
@@ -27,6 +38,10 @@ module Crypto.HDKey.BIP32 (
 
   -- * Parsing
   , parse
+
+  -- * Child key derivation functions
+  , derive_child_pub
+  , derive_child_priv
   ) where
 
 import Control.Monad (guard)
@@ -61,7 +76,7 @@ unroll i = case i of
 parse256 :: BS.ByteString -> Integer
 parse256 bs@(BI.PS _ _ l)
     | l == 32   = BS.foldl' alg 0 bs
-    | otherwise = error "ppad-bip32 (parse256): invalid_lineage input"
+    | otherwise = error "ppad-bip32 (parse256): invalid input"
   where
     alg !a (fi -> !b) = (a .<<. 8) .|. b
 
@@ -84,18 +99,23 @@ ser32 w =
 
 -- extended keys --------------------------------------------------------------
 
+-- | A public or private key, extended with a chain code.
 data X a = X !a !BS.ByteString
   deriving (Eq, Show)
 
+-- | An extended public key.
 newtype XPub = XPub (X Secp256k1.Projective)
   deriving (Eq, Show)
 
+-- | An extended private key.
 newtype XPrv = XPrv (X Integer)
   deriving (Eq, Show)
 
 class Extended k where
+  -- | Calculate the identifier for an extended key.
   identifier  :: k -> BS.ByteString
 
+  -- | Calculate the fingerprint of an extended key.
   fingerprint :: k -> BS.ByteString
   fingerprint = BS.take 4 . identifier
 
@@ -110,11 +130,12 @@ instance Extended XPrv where
         ser = Secp256k1.serialize_point p
     in  RIPEMD160.hash (SHA256.hash ser)
 
--- key derivation functions ---------------------------------------------------
+-- internal key derivation functions-------------------------------------------
 
 hardened :: Word32 -> Bool
 hardened = (>= 0x8000_0000)
 
+-- master xprv from seed
 _master :: BS.ByteString -> Maybe XPrv
 _master seed@(BI.PS _ _ l)
   | l < 16 = Nothing
@@ -163,11 +184,15 @@ n (XPrv (X sec cod)) =
 
 -- hierarchical deterministic keys --------------------------------------------
 
+-- | A BIP32 hierarchical deterministic key.
+--
+--   This differs from the lower-level "extended" key in that it carries all
+--   information required for serialization.
 data HDKey = HDKey {
-    hd_key    :: !(Either XPub XPrv)
-  , hd_depth  :: !Word8
-  , hd_parent :: !BS.ByteString
-  , hd_child  :: !BS.ByteString
+    hd_key    :: !(Either XPub XPrv) -- ^ extended public or private key
+  , hd_depth  :: !Word8              -- ^ key depth
+  , hd_parent :: !BS.ByteString      -- ^ parent fingerprint
+  , hd_child  :: !BS.ByteString      -- ^ index or child number
   }
   deriving (Eq, Show)
 
@@ -176,6 +201,9 @@ instance Extended HDKey where
     Left l -> identifier l
     Right r -> identifier r
 
+-- | Derive a master 'HDKey' from a master seed.
+--
+--   Fails with 'Nothing' if the provided seed has an invalid length.
 master :: BS.ByteString -> Maybe HDKey
 master seed = do
   m <- _master seed
@@ -186,6 +214,9 @@ master seed = do
     , hd_child = ser32 0
     }
 
+-- | Derive a private child node at the provided index.
+--
+--   Fails with 'Nothing' if derivation is impossible.
 derive_child_priv :: HDKey -> Word32 -> Maybe HDKey
 derive_child_priv HDKey {..} i = case hd_key of
   Left _ -> Nothing
@@ -196,6 +227,9 @@ derive_child_priv HDKey {..} i = case hd_key of
         child = ser32 i
     in  HDKey key depth parent child
 
+-- | Derive a public child node at the provided index.
+--
+--   Fails with 'Nothing' if derivation is impossible.
 derive_child_pub :: HDKey -> Word32 -> Maybe HDKey
 derive_child_pub HDKey {..} i = do
   (key, parent) <- case hd_key of
@@ -211,6 +245,7 @@ derive_child_pub HDKey {..} i = do
 
 -- derivation path expression -------------------------------------------------
 
+-- recursive derivation path
 data Path =
     M
   | !Path :| !Word32 -- hardened
@@ -242,7 +277,14 @@ parse_path bs = case BS.uncons bs of
         | otherwise ->
             Nothing
 
-derive :: HDKey -> BS.ByteString -> Maybe HDKey
+-- | Derive a child node via the provided derivation path.
+--
+--   Fails with 'Nothing' if derivation is impossible, or if the
+--   provided path is invalid.
+derive
+  :: HDKey
+  -> BS.ByteString -- ^ derivation path
+  -> Maybe HDKey
 derive hd pat = case parse_path pat of
     Nothing -> Nothing
     Just p  -> go p
@@ -256,7 +298,14 @@ derive hd pat = case parse_path pat of
         hdkey <- go p
         derive_child_priv hdkey i
 
-derive_partial :: HDKey -> BS.ByteString -> HDKey
+-- | Derive a child node via the provided derivation path.
+--
+--   Fails with 'error' if derivation is impossible, or if the provided
+--   path is invalid.
+derive_partial
+  :: HDKey
+  -> BS.ByteString
+  -> HDKey
 derive_partial hd pat = case derive hd pat of
   Nothing -> error "ppad-bip32 (derive_partial): couldn't derive extended key"
   Just hdkey -> hdkey
@@ -281,6 +330,7 @@ _TESTNET_PUB_BYTES = "\EOT5\135\207"
 _TESTNET_PRV = 0x04358394
 _TESTNET_PRV_BYTES = "\EOT5\131\148"
 
+-- | Serialize a mainnet extended public key in base58check format.
 xpub :: HDKey -> BS.ByteString
 xpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
@@ -290,12 +340,14 @@ xpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
       , ..
       }
 
+-- | Serialize a mainnet extended private key in base58check format.
 xprv :: HDKey -> BS.ByteString
 xprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
     Left _  -> error "ppad-bip32 (xprv): no private key"
     Right _ -> _serialize _MAINNET_PRV x
 
+-- | Serialize a testnet extended public key in base58check format.
 tpub :: HDKey -> BS.ByteString
 tpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
@@ -305,6 +357,7 @@ tpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
       , ..
       }
 
+-- | Serialize a testnet extended private key in base58check format.
 tprv :: HDKey -> BS.ByteString
 tprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
@@ -332,6 +385,9 @@ data KeyType =
     Pub
   | Prv
 
+-- | Parse a base58check-encoded 'ByteString' into a 'HDKey'.
+--
+--   Fails with 'Nothing' if the provided key is invalid.
 parse :: BS.ByteString -> Maybe HDKey
 parse b58 = do
     bs <- B58C.decode b58
