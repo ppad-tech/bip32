@@ -24,8 +24,12 @@ module Crypto.HDKey.BIP32 (
   , xprv
   , tpub
   , tprv
+
+  -- * Parsing
+  , parse
   ) where
 
+import Control.Monad (guard)
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Crypto.Hash.SHA512 as SHA512
 import qualified Crypto.Hash.RIPEMD160 as RIPEMD160
@@ -33,7 +37,7 @@ import qualified Crypto.Curve.Secp256k1 as Secp256k1
 import Data.Bits ((.<<.), (.>>.), (.|.), (.&.))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Base58 as B58
+import qualified Data.ByteString.Base58Check as B58C
 import qualified Data.ByteString.Builder as BSB
 import qualified Data.ByteString.Internal as BI
 import Data.Word (Word8, Word32)
@@ -57,7 +61,7 @@ unroll i = case i of
 parse256 :: BS.ByteString -> Integer
 parse256 bs@(BI.PS _ _ l)
     | l == 32   = BS.foldl' alg 0 bs
-    | otherwise = error "ppad-bip32 (parse256): invalid input"
+    | otherwise = error "ppad-bip32 (parse256): invalid_lineage input"
   where
     alg !a (fi -> !b) = (a .<<. 8) .|. b
 
@@ -162,7 +166,7 @@ n (XPrv (X sec cod)) =
 data HDKey = HDKey {
     hd_key    :: !(Either XPub XPrv)
   , hd_depth  :: !Word8
-  , hd_parent :: !(Maybe BS.ByteString) -- parent fingerprint
+  , hd_parent :: !BS.ByteString
   , hd_child  :: !BS.ByteString
   }
   deriving (Eq, Show)
@@ -178,7 +182,7 @@ master seed = do
   pure $! HDKey {
       hd_key = Right m
     , hd_depth = 0
-    , hd_parent = Nothing
+    , hd_parent = "\NUL\NUL\NUL\NUL" -- 0x0000_0000
     , hd_child = ser32 0
     }
 
@@ -188,7 +192,7 @@ derive_child_priv HDKey {..} i = case hd_key of
   Right _xprv -> pure $!
     let key   = Right (ckd_priv _xprv i)
         depth = hd_depth + 1
-        parent = Just (fingerprint _xprv)
+        parent = fingerprint _xprv
         child = ser32 i
     in  HDKey key depth parent child
 
@@ -203,7 +207,7 @@ derive_child_pub HDKey {..} i = do
       in  pure (pub, fingerprint _xprv)
   let depth = hd_depth + 1
       child = ser32 i
-  pure $ HDKey (Left key) depth (Just parent) child
+  pure $ HDKey (Left key) depth parent child
 
 -- derivation path expression -------------------------------------------------
 
@@ -213,8 +217,8 @@ data Path =
   | !Path :/ !Word32
   deriving (Eq, Show)
 
-parse :: BS.ByteString -> Maybe Path
-parse bs = case BS.uncons bs of
+parse_path :: BS.ByteString -> Maybe Path
+parse_path bs = case BS.uncons bs of
     Nothing -> Nothing
     Just (h, t)
       | h == 109  -> go M t -- == 'm'
@@ -239,7 +243,7 @@ parse bs = case BS.uncons bs of
             Nothing
 
 derive :: HDKey -> BS.ByteString -> Maybe HDKey
-derive hd pat = case parse pat of
+derive hd pat = case parse_path pat of
     Nothing -> Nothing
     Just p  -> go p
   where
@@ -259,55 +263,59 @@ derive_partial hd pat = case derive hd pat of
 
 -- serialization --------------------------------------------------------------
 
+_MAINNET_PUB, _MAINNET_PRV :: Word32
+_TESTNET_PUB, _TESTNET_PRV :: Word32
+
+_MAINNET_PUB_BYTES, _MAINNET_PRV_BYTES :: BS.ByteString
+_TESTNET_PUB_BYTES, _TESTNET_PRV_BYTES :: BS.ByteString
+
+_MAINNET_PUB = 0x0488B21E
+_MAINNET_PUB_BYTES = "\EOT\136\178\RS"
+
+_MAINNET_PRV = 0x0488ADE4
+_MAINNET_PRV_BYTES = "\EOT\136\173\228"
+
+_TESTNET_PUB = 0x043587CF
+_TESTNET_PUB_BYTES = "\EOT5\135\207"
+
+_TESTNET_PRV = 0x04358394
+_TESTNET_PRV_BYTES = "\EOT5\131\148"
+
 xpub :: HDKey -> BS.ByteString
-xpub x@HDKey {..} =
-  let _MAINNET_PUBLIC  = 0x0488B21E
-      pay = BS.toStrict . BSB.toLazyByteString $ case hd_key of
-        Left _  -> _serialize _MAINNET_PUBLIC x
-        Right e -> _serialize _MAINNET_PUBLIC HDKey {
-            hd_key = Left (n e)
-          , ..
-          }
-      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
-  in  B58.encode (pay <> kek)
+xpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
+  case hd_key of
+    Left _  -> _serialize _MAINNET_PUB x
+    Right e -> _serialize _MAINNET_PUB HDKey {
+        hd_key = Left (n e)
+      , ..
+      }
 
 xprv :: HDKey -> BS.ByteString
-xprv x@HDKey {..} =
-  let _MAINNET_PRIVATE = 0x0488ADE4
-      pay = BS.toStrict . BSB.toLazyByteString $ case hd_key of
-        Left _  -> error "ppad-bip32 (xprv): no private key"
-        Right _ -> _serialize _MAINNET_PRIVATE x
-      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
-  in  B58.encode (pay <> kek)
+xprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
+  case hd_key of
+    Left _  -> error "ppad-bip32 (xprv): no private key"
+    Right _ -> _serialize _MAINNET_PRV x
 
 tpub :: HDKey -> BS.ByteString
-tpub x@HDKey {..} =
-  let _TESTNET_PUBLIC = 0x043587CF
-      pay = BS.toStrict . BSB.toLazyByteString $ case hd_key of
-        Left _  -> _serialize _TESTNET_PUBLIC x
-        Right e -> _serialize _TESTNET_PUBLIC HDKey {
-            hd_key = Left (n e)
-          , ..
-          }
-      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
-  in  B58.encode (pay <> kek)
+tpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
+  case hd_key of
+    Left _  -> _serialize _TESTNET_PUB x
+    Right e -> _serialize _TESTNET_PUB HDKey {
+      hd_key = Left (n e)
+      , ..
+      }
 
 tprv :: HDKey -> BS.ByteString
-tprv x@HDKey {..} =
-  let _TESTNET_PRIVATE = 0x04358394
-      pay = BS.toStrict . BSB.toLazyByteString $ case hd_key of
-        Left _  -> error "ppad-bip32 (tprv): no private key"
-        Right _ -> _serialize _TESTNET_PRIVATE x
-      kek = BS.take 4 (SHA256.hash (SHA256.hash pay))
-  in  B58.encode (pay <> kek)
+tprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
+  case hd_key of
+    Left _  -> error "ppad-bip32 (tprv): no private key"
+    Right _ -> _serialize _TESTNET_PRV x
 
 _serialize :: Word32 -> HDKey -> BSB.Builder
 _serialize version HDKey {..} =
      BSB.word32BE version
   <> BSB.word8 hd_depth
-  <> case hd_parent of
-       Nothing -> BSB.word32BE 0x0000_0000
-       Just k  -> BSB.byteString k
+  <> BSB.byteString hd_parent
   <> BSB.byteString hd_child
   <> case hd_key of
        Left (XPub (X pub cod)) ->
@@ -317,4 +325,58 @@ _serialize version HDKey {..} =
             BSB.byteString cod
          <> BSB.word8 0x00
          <> BSB.byteString (ser256 sec)
+
+-- parsing --------------------------------------------------------------------
+
+data KeyType =
+    Pub
+  | Prv
+
+parse :: BS.ByteString -> Maybe HDKey
+parse b58 = do
+    bs <- B58C.decode b58
+    case BS.splitAt 4 bs of
+      (version, etc)
+        | version == _MAINNET_PUB_BYTES || version == _TESTNET_PUB_BYTES ->
+            parse_pub etc
+        | version == _MAINNET_PRV_BYTES || version == _TESTNET_PRV_BYTES ->
+            parse_prv etc
+        | otherwise ->
+            Nothing
+  where
+    parse_pub = _parse Pub
+    parse_prv = _parse Prv
+
+    _parse ktype bs = do
+      (hd_depth, etc0) <- BS.uncons bs
+      let (hd_parent, etc1) = BS.splitAt 4 etc0
+      guard (BS.length hd_parent == 4)
+      let (hd_child, etc2) = BS.splitAt 4 etc1
+      guard (BS.length hd_child == 4)
+      let (cod, etc3) = BS.splitAt 32 etc2
+      guard (BS.length cod == 32)
+      let (key, etc4) = BS.splitAt 33 etc3
+      guard (BS.length key == 33)
+      guard (BS.length etc4 == 0)
+      hd <- case ktype of
+        Pub -> do
+          pub <- Secp256k1.parse_point key
+          let hd_key = Left (XPub (X pub cod))
+          pure HDKey {..}
+        Prv -> do
+          (b, parse256 -> prv) <- BS.uncons key
+          guard (b == 0)
+          guard (prv > 0 && prv < Secp256k1._CURVE_Q)
+          let hd_key = Right (XPrv (X prv cod))
+          pure HDKey {..}
+      guard (valid_lineage hd)
+      pure hd
+    {-# INLINE _parse #-}
+
+valid_lineage :: HDKey -> Bool
+valid_lineage HDKey {..}
+  | hd_depth == 0 =
+         hd_parent == "\NUL\NUL\NUL\NUL"
+      && hd_child == "\NUL\NUL\NUL\NUL"
+  | otherwise = True
 
