@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               ppad-bip32
-version:            0.1.0
+version:            0.1.1
 synopsis:           BIP32 hierarchical deterministic wallets.
 license:            MIT
 license-file:       LICENSE
