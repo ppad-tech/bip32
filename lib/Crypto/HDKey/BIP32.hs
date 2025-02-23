@@ -237,13 +237,13 @@ derive_child_pub HDKey {..} i = do
   (key, parent) <- case hd_key of
     Left _xpub  -> do
       pub <- ckd_pub _xpub i
-      pure (pub, fingerprint _xpub)
+      pure $! (pub, fingerprint _xpub)
     Right _xprv ->
       let pub = n (ckd_priv _xprv i)
-      in  pure (pub, fingerprint _xprv)
+      in  pure $! (pub, fingerprint _xprv)
   let depth = hd_depth + 1
       child = ser32 i
-  pure $ HDKey (Left key) depth parent child
+  pure $! HDKey (Left key) depth parent child
 
 -- derivation path expression -------------------------------------------------
 
