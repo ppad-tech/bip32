@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE LambdaCase #-}
@@ -26,6 +27,9 @@ module Crypto.HDKey.BIP32 (
   , XPub(..)
   , XPrv(..)
   , X(..)
+  , ckd_pub
+  , ckd_priv
+  , n
 
   -- * Child derivation via path
   , derive
@@ -96,13 +100,9 @@ ser32 w =
       !w1 = fi (w .>>. 16) .&. mask
       !w2 = fi (w .>>. 08) .&. mask
       !w3 = fi w .&. mask
-  in  BS.cons w0 (BS.cons w1 (BS.cons w2 (BS.singleton w3))) -- XX
+  in  BS.cons w0 (BS.cons w1 (BS.cons w2 (BS.singleton w3)))
 
 -- extended keys --------------------------------------------------------------
-
--- | A public or private key, extended with a chain code.
-data X a = X !a !BS.ByteString
-  deriving (Eq, Show)
 
 -- | An extended public key.
 newtype XPub = XPub (X Secp256k1.Projective)
@@ -112,7 +112,22 @@ newtype XPub = XPub (X Secp256k1.Projective)
 newtype XPrv = XPrv (X Integer)
   deriving (Eq, Show)
 
+-- | A public or private key, extended with a chain code.
+data X a = X !a !BS.ByteString
+  deriving (Eq, Show)
+
 -- | Key types supporting identifier/fingerprint calculation.
+--
+--   >>> let Just hd = master "my very secret entropy"
+--   >>> let Right my_xprv = hd_key hd
+--   >>> let my_xpub = n k
+--   >>> -- all have the same fingerprint
+--   >>> fingerprint hd
+--   "G\157\&8\146"
+--   >>> fingerprint my_xprv
+--   "G\157\&8\146"
+--   >>> fingerprint my_xpub
+--   "G\157\&8\146"
 class Extended k where
   -- | Calculate the identifier for an extended key.
   identifier  :: k -> BS.ByteString
@@ -206,6 +221,10 @@ instance Extended HDKey where
 -- | Derive a master 'HDKey' from a master seed.
 --
 --   Fails with 'Nothing' if the provided seed has an invalid length.
+--
+---  >>> let Just hd = master "my very secret entropy"
+--   >>> xpub hd
+--   "xpub661MyMwAqRbcGTJPtZRqZyrvjxHCfhqXeiqb5GVU3EGuFBy4QxT3yt8iiHwZTiCzZFyuyNiqXB3eqzqFZ8z4L6HCrPSkDVFNuW59LXYvMjs"
 master :: BS.ByteString -> Maybe HDKey
 master seed = do
   m <- _master seed
@@ -219,6 +238,10 @@ master seed = do
 -- | Derive a private child node at the provided index.
 --
 --   Fails with 'Nothing' if derivation is impossible.
+--
+--   >>> let Just child_prv = derive_child_priv hd 0
+--   >>> xpub child_prv
+--   "xpub68R2ZbtFeJTFJApdEdPqW5cy3d5wF96tTfJErhu3mTi2Ttaqvc88BMPrgS3hQSrHj91kRbzVLM9pue9f8219szRKZuTAx1LWbdLDLFDm6Ly"
 derive_child_priv :: HDKey -> Word32 -> Maybe HDKey
 derive_child_priv HDKey {..} i = case hd_key of
   Left _ -> Nothing
@@ -232,6 +255,11 @@ derive_child_priv HDKey {..} i = case hd_key of
 -- | Derive a public child node at the provided index.
 --
 --   Fails with 'Nothing' if derivation is impossible.
+--
+--   >>> :set -XNumericUnderscores
+--   >>> let Just child_pub = derive_child_pub child_prv 0x8000_0000
+--   >>> xpub child_pub
+--   "xpub6B6LoU83Cpyx1UVMwuoQdQvY2BuGbPd2xsEVxCnj85UGgDN9bRz82hQhe9UFmyo4Pokuhjc8M1Cfc8ufLxcL6FkCF7Zc2eajEfWfZwMFF6X"
 derive_child_pub :: HDKey -> Word32 -> Maybe HDKey
 derive_child_pub HDKey {..} i = do
   (key, parent) <- case hd_key of
@@ -284,8 +312,10 @@ parse_path bs = case BS.uncons bs of
 --   Fails with 'Nothing' if derivation is impossible, or if the
 --   provided path is invalid.
 --
---   >>> let hd = master "my very secret master seed"
---   >>> derive hd "m/44'/0'/0'/0/0"
+--   >>> let Just hd = master "my very secret master seed"
+--   >>> let Just child = derive hd "m/44'/0'/0'/0/0"
+--   >>> xpub child
+--   "xpub6FvaeGNFmCkLky6jwefrUfyH7gCGSAUckRBANT6wLQkm4eWZApsf4LqAadtbM8EBFfuKGFgzhgta4ByP6xnBodk2EV7BiwxCPLgu13oYWGp"
 derive
   :: HDKey
   -> BS.ByteString -- ^ derivation path
@@ -308,8 +338,9 @@ derive hd pat = case parse_path pat of
 --   Fails with 'error' if derivation is impossible, or if the provided
 --   path is invalid.
 --
---   >>> let hd = master "my very secret master seed"
---   >>> derive hd "m/44'/0'/0'/0/0"
+--   >>> let Just other_child = derive hd "m/44'/0'/0'/0/1"
+--   >>> xpub other_child
+--   "xpub6FvaeGNFmCkLpkT3uahJnGPTfEX62PtH7uZAyjtru8S2FvPuYTQKn8ct6CNQAwHMXaGN6EYuwi1Tz2VD7msftH8VTAtzgNra9CForA9FBP4"
 derive_partial
   :: HDKey
   -> BS.ByteString
@@ -339,6 +370,10 @@ _TESTNET_PRV = 0x04358394
 _TESTNET_PRV_BYTES = "\EOT5\131\148"
 
 -- | Serialize a mainnet extended public key in base58check format.
+--
+--   >>> let Just hd = master "my very secret entropy"
+--   >>> xpub hd
+--   "xpub661MyMwAqRbcGTJPtZRqZyrvjxHCfhqXeiqb5GVU3EGuFBy4QxT3yt8iiHwZTiCzZFyuyNiqXB3eqzqFZ8z4L6HCrPSkDVFNuW59LXYvMjs"
 xpub :: HDKey -> BS.ByteString
 xpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
@@ -349,6 +384,9 @@ xpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
       }
 
 -- | Serialize a mainnet extended private key in base58check format.
+--
+--   >>> xprv hd
+--   "xprv9s21ZrQH143K3yDvnXtqCqvCBvSiGF7gHVuzGt5rUtjvNPdusR8oS5pErywDM1jDDTcLpNNCbg9a9NuidBczRzSUp7seDeu8am64h6nfdrg"
 xprv :: HDKey -> BS.ByteString
 xprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
@@ -356,6 +394,9 @@ xprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
     Right _ -> _serialize _MAINNET_PRV x
 
 -- | Serialize a testnet extended public key in base58check format.
+--
+--   >>> tpub hd
+--   "tpubD6NzVbkrYhZ4YFVFLkQvmuCJ55Nrf6LbCMRtRpYcP92nzUdmVBJ98KoYxL2LzDAEMAWpaxEi4GshYBKrwzqJDXjVuzC3u1ucVTfZ6ZD415x"
 tpub :: HDKey -> BS.ByteString
 tpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
@@ -366,6 +407,9 @@ tpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
       }
 
 -- | Serialize a testnet extended private key in base58check format.
+--
+--   >>> tprv hd
+--   "tprv8ZgxMBicQKsPenTTT6kLNVYBW3rvVm9gd3q79JWJxsEQ9zNzrnUYwqBgnA6sMP7Xau97pTyxm2jNcETTkPxwF3i5Lm5wt1dBVrqV8kKi5v5"
 tprv :: HDKey -> BS.ByteString
 tprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
   case hd_key of
@@ -396,6 +440,11 @@ data KeyType =
 -- | Parse a base58check-encoded 'ByteString' into a 'HDKey'.
 --
 --   Fails with 'Nothing' if the provided key is invalid.
+--
+--   >>> let Just hd = master "my very secret entropy"
+--   >>> let Just my_xprv = parse (xprv hd)
+--   >>> my_xprv == hd
+--   True
 parse :: BS.ByteString -> Maybe HDKey
 parse b58 = do
     bs <- B58C.decode b58
