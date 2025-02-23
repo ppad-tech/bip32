@@ -29,6 +29,7 @@ main = defaultMain [
       , bench_derive_priv
       , bench_xpub
       , bench_xprv
+      , bench_parse
     ]
   ]
 
