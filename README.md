@@ -2,6 +2,7 @@
 
 [![](https://img.shields.io/hackage/v/ppad-bip32?color=blue)](https://hackage.haskell.org/package/ppad-bip32)
 ![](https://img.shields.io/badge/license-MIT-brightgreen)
+[![](https://img.shields.io/badge/haddock-bip32-lightblue)](https://docs.ppad.tech/bip32)
 
 An implementation of [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) hierarchical deterministic wallets and extended keys.
 
