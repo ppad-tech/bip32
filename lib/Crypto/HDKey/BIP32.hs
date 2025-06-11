@@ -81,7 +81,7 @@ unroll i = case i of
 parse256 :: BS.ByteString -> Integer
 parse256 bs@(BI.PS _ _ l)
     | l == 32   = BS.foldl' alg 0 bs
-    | otherwise = error "ppad-bip32 (parse256): invalid input"
+    | otherwise = error "ppad-bip32 (parse256): internal error"
   where
     alg !a (fi -> !b) = (a .<<. 8) .|. b
 
@@ -160,7 +160,7 @@ _master seed@(BI.PS _ _ l)
   | otherwise = do
       let i = SHA512.hmac "Bitcoin seed" seed
           (il, c) = BS.splitAt 32 i
-          s = parse256 il
+          s = parse256 il -- safe due to 512-bit hmac
       pure $! (XPrv (X s c))
 
 -- private parent key -> private child key
@@ -168,7 +168,7 @@ ckd_priv :: XPrv -> Word32 -> XPrv
 ckd_priv _xprv@(XPrv (X sec cod)) i =
     let l = SHA512.hmac cod dat
         (il, ci) = BS.splitAt 32 l
-        pil = parse256 il
+        pil = parse256 il -- safe due to 512-bit hmac
         ki  = Secp256k1.modQ (pil + sec)
     in  if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negl
         then ckd_priv _xprv (succ i)
@@ -187,7 +187,7 @@ ckd_pub _xpub@(XPub (X pub cod)) i
       let dat = Secp256k1.serialize_point pub <> ser32 i
           l   = SHA512.hmac cod dat
           (il, ci) = BS.splitAt 32 l
-          pil = parse256 il
+          pil = parse256 il -- safe due to 512-bit hmac
           ki = Secp256k1.mul_unsafe Secp256k1._CURVE_G pil `Secp256k1.add` pub
       if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
       then ckd_pub _xpub (succ i)
@@ -477,7 +477,7 @@ parse b58 = do
           let hd_key = Left (XPub (X pub cod))
           pure HDKey {..}
         Prv -> do
-          (b, parse256 -> prv) <- BS.uncons key
+          (b, parse256 -> prv) <- BS.uncons key -- safe due to guarded keylen
           guard (b == 0)
           guard (prv > 0 && prv < Secp256k1._CURVE_Q)
           let hd_key = Right (XPrv (X prv cod))
