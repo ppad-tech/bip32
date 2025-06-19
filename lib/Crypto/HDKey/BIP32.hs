@@ -142,10 +142,11 @@ instance Extended XPub where
     in  RIPEMD160.hash (SHA256.hash ser)
 
 instance Extended XPrv where
-  identifier (XPrv (X sec _)) =
-    let p = Secp256k1.mul Secp256k1._CURVE_G sec
-        ser = Secp256k1.serialize_point p
-    in  RIPEMD160.hash (SHA256.hash ser)
+  identifier (XPrv (X sec _)) = case Secp256k1.mul Secp256k1._CURVE_G sec of
+    Nothing -> error "ppad-bip32 (identifier): evil extended key"
+    Just p ->
+      let ser = Secp256k1.serialize_point p
+      in  RIPEMD160.hash (SHA256.hash ser)
 
 -- internal key derivation functions-------------------------------------------
 
@@ -175,9 +176,9 @@ ckd_priv _xprv@(XPrv (X sec cod)) i =
         else XPrv (X ki ci)
   where
     dat | hardened i = BS.singleton 0x00 <> ser256 sec <> ser32 i
-        | otherwise  =
-            let p = Secp256k1.mul Secp256k1._CURVE_G sec
-            in  Secp256k1.serialize_point p <> ser32 i
+        | otherwise  = case Secp256k1.mul Secp256k1._CURVE_G sec of
+            Nothing -> error "ppad-bip32 (ckd_priv): evil extended key"
+            Just p  -> Secp256k1.serialize_point p <> ser32 i
 
 -- public parent key -> public child key
 ckd_pub :: XPub -> Word32 -> Maybe XPub
@@ -188,16 +189,17 @@ ckd_pub _xpub@(XPub (X pub cod)) i
           l   = SHA512.hmac cod dat
           (il, ci) = BS.splitAt 32 l
           pil = parse256 il -- safe due to 512-bit hmac
-          ki = Secp256k1.mul_unsafe Secp256k1._CURVE_G pil `Secp256k1.add` pub
+      pt <- Secp256k1.mul_unsafe Secp256k1._CURVE_G pil
+      let  ki = pt `Secp256k1.add` pub
       if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
       then ckd_pub _xpub (succ i)
       else pure (XPub (X ki ci))
 
 -- private parent key -> public child key
 n :: XPrv -> XPub
-n (XPrv (X sec cod)) =
-  let p = Secp256k1.mul Secp256k1._CURVE_G sec
-  in  XPub (X p cod)
+n (XPrv (X sec cod)) = case Secp256k1.mul Secp256k1._CURVE_G sec of
+  Nothing -> error "ppad-bip32 (n): evil extended key"
+  Just p -> XPub (X p cod)
 
 -- hierarchical deterministic keys --------------------------------------------
 
