@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
@@ -9,17 +10,14 @@ import Criterion.Main
 import Crypto.HDKey.BIP32
 import Control.DeepSeq
 import Crypto.Curve.Secp256k1 as S
+import qualified Data.Maybe as M
 
 instance NFData S.Projective
-
-instance NFData XPub where
-  rnf (XPub (X a b)) = a `deepseq` b `deepseq` ()
-
-instance NFData XPrv where
-  rnf (XPrv (X a b)) = a `deepseq` b `deepseq` ()
-
-instance NFData HDKey where
-  rnf (HDKey a b c d) = a `deepseq` b `deepseq` c `deepseq` d `deepseq` ()
+instance NFData (X Integer)
+instance NFData (X S.Projective)
+instance NFData XPub
+instance NFData XPrv
+instance NFData HDKey
 
 main :: IO ()
 main = defaultMain [
@@ -54,5 +52,5 @@ bench_xprv :: Benchmark
 bench_xprv = bench "xprv" $ nf xprv m
 
 bench_parse :: Benchmark
-bench_parse = bench "parse" $ nf parse (xprv m)
+bench_parse = bench "parse" $ nf parse (M.fromJust (xprv m))
 

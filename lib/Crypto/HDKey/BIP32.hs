@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BinaryLiterals #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -24,9 +25,9 @@ module Crypto.HDKey.BIP32 (
 
   -- * Extended keys
   , Extended(..)
-  , XPub(..)
-  , XPrv(..)
-  , X(..)
+  , XPub
+  , XPrv
+  , X
   , ckd_pub
   , ckd_priv
   , n
@@ -61,6 +62,7 @@ import qualified Data.ByteString.Base58Check as B58C
 import qualified Data.ByteString.Builder as BSB
 import qualified Data.ByteString.Internal as BI
 import Data.Word (Word8, Word32)
+import GHC.Generics
 
 -- utilities ------------------------------------------------------------------
 
@@ -106,15 +108,15 @@ ser32 w =
 
 -- | An extended public key.
 newtype XPub = XPub (X Secp256k1.Projective)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 -- | An extended private key.
 newtype XPrv = XPrv (X Integer)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 -- | A public or private key, extended with a chain code.
 data X a = X !a !BS.ByteString
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 -- | Key types supporting identifier/fingerprint calculation.
 --
@@ -143,7 +145,8 @@ instance Extended XPub where
 
 instance Extended XPrv where
   identifier (XPrv (X sec _)) = case Secp256k1.mul Secp256k1._CURVE_G sec of
-    Nothing -> error "ppad-bip32 (identifier): evil extended key"
+    Nothing ->
+      error "ppad-bip32 (identifier): internal error, evil extended key"
     Just p ->
       let ser = Secp256k1.serialize_point p
       in  RIPEMD160.hash (SHA256.hash ser)
@@ -177,7 +180,8 @@ ckd_priv _xprv@(XPrv (X sec cod)) i =
   where
     dat | hardened i = BS.singleton 0x00 <> ser256 sec <> ser32 i
         | otherwise  = case Secp256k1.mul Secp256k1._CURVE_G sec of
-            Nothing -> error "ppad-bip32 (ckd_priv): evil extended key"
+            Nothing ->
+              error "ppad-bip32 (ckd_priv): internal error, evil extended key"
             Just p  -> Secp256k1.serialize_point p <> ser32 i
 
 -- public parent key -> public child key
@@ -198,7 +202,7 @@ ckd_pub _xpub@(XPub (X pub cod)) i
 -- private parent key -> public child key
 n :: XPrv -> XPub
 n (XPrv (X sec cod)) = case Secp256k1.mul Secp256k1._CURVE_G sec of
-  Nothing -> error "ppad-bip32 (n): evil extended key"
+  Nothing -> error "ppad-bip32 (n): internal error, evil extended key"
   Just p -> XPub (X p cod)
 
 -- hierarchical deterministic keys --------------------------------------------
@@ -213,7 +217,7 @@ data HDKey = HDKey {
   , hd_parent :: !BS.ByteString      -- ^ parent fingerprint
   , hd_child  :: !BS.ByteString      -- ^ index or child number
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance Extended HDKey where
   identifier (HDKey ekey _ _ _) = case ekey of
@@ -340,7 +344,7 @@ derive hd pat = case parse_path pat of
 --   Fails with 'error' if derivation is impossible, or if the provided
 --   path is invalid.
 --
---   >>> let Just other_child = derive hd "m/44'/0'/0'/0/1"
+--   >>> let other_child = derive_partial hd "m/44'/0'/0'/0/1"
 --   >>> xpub other_child
 --   "xpub6FvaeGNFmCkLpkT3uahJnGPTfEX62PtH7uZAyjtru8S2FvPuYTQKn8ct6CNQAwHMXaGN6EYuwi1Tz2VD7msftH8VTAtzgNra9CForA9FBP4"
 derive_partial
@@ -388,12 +392,13 @@ xpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
 -- | Serialize a mainnet extended private key in base58check format.
 --
 --   >>> xprv hd
---   "xprv9s21ZrQH143K3yDvnXtqCqvCBvSiGF7gHVuzGt5rUtjvNPdusR8oS5pErywDM1jDDTcLpNNCbg9a9NuidBczRzSUp7seDeu8am64h6nfdrg"
-xprv :: HDKey -> BS.ByteString
-xprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
-  case hd_key of
-    Left _  -> error "ppad-bip32 (xprv): no private key"
-    Right _ -> _serialize _MAINNET_PRV x
+--   Just "xprv9s21ZrQH143K3yDvnXtqCqvCBvSiGF7gHVuzGt5rUtjvNPdusR8oS5pErywDM1jDDTcLpNNCbg9a9NuidBczRzSUp7seDeu8am64h6nfdrg"
+xprv :: HDKey -> Maybe BS.ByteString
+xprv x@HDKey {..} = case hd_key of
+  Left _  -> Nothing
+  Right _ -> do
+    let ser = _serialize _MAINNET_PRV x
+    pure $! (B58C.encode . BS.toStrict . BSB.toLazyByteString) ser
 
 -- | Serialize a testnet extended public key in base58check format.
 --
@@ -411,12 +416,13 @@ tpub x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
 -- | Serialize a testnet extended private key in base58check format.
 --
 --   >>> tprv hd
---   "tprv8ZgxMBicQKsPenTTT6kLNVYBW3rvVm9gd3q79JWJxsEQ9zNzrnUYwqBgnA6sMP7Xau97pTyxm2jNcETTkPxwF3i5Lm5wt1dBVrqV8kKi5v5"
-tprv :: HDKey -> BS.ByteString
-tprv x@HDKey {..} = B58C.encode . BS.toStrict . BSB.toLazyByteString $
-  case hd_key of
-    Left _  -> error "ppad-bip32 (tprv): no private key"
-    Right _ -> _serialize _TESTNET_PRV x
+--   Just "tprv8ZgxMBicQKsPenTTT6kLNVYBW3rvVm9gd3q79JWJxsEQ9zNzrnUYwqBgnA6sMP7Xau97pTyxm2jNcETTkPxwF3i5Lm5wt1dBVrqV8kKi5v5"
+tprv :: HDKey -> Maybe BS.ByteString
+tprv x@HDKey {..} = case hd_key of
+  Left _  -> Nothing
+  Right _ -> do
+    let ser = _serialize _TESTNET_PRV x
+    pure $! (B58C.encode . BS.toStrict . BSB.toLazyByteString) ser
 
 _serialize :: Word32 -> HDKey -> BSB.Builder
 _serialize version HDKey {..} =
