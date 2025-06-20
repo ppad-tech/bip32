@@ -26,7 +26,11 @@ module Crypto.HDKey.BIP32 (
   -- * Extended keys
   , Extended(..)
   , XPub
+  , xpub_key
+  , xpub_cod
   , XPrv
+  , xprv_key
+  , xprv_cod
   , X
   , ckd_pub
   , ckd_priv
@@ -110,9 +114,25 @@ ser32 w =
 newtype XPub = XPub (X Secp256k1.Projective)
   deriving (Eq, Show, Generic)
 
+-- | Read the raw public key from an 'XPub'.
+xpub_key :: XPub -> Secp256k1.Projective
+xpub_key (XPub (X pub _)) = pub
+
+-- | Read the raw chain code from an 'XPub'.
+xpub_cod :: XPub -> BS.ByteString
+xpub_cod (XPub (X _ cod)) = cod
+
 -- | An extended private key.
 newtype XPrv = XPrv (X Integer)
   deriving (Eq, Show, Generic)
+
+-- | Read the raw private key from an 'XPrv'.
+xprv_key :: XPrv -> Integer
+xprv_key (XPrv (X sec _)) = sec
+
+-- | Read the raw chain code from an 'XPrv'.
+xprv_cod :: XPrv -> BS.ByteString
+xprv_cod (XPrv (X _ cod)) = cod
 
 -- | A public or private key, extended with a chain code.
 data X a = X !a !BS.ByteString
