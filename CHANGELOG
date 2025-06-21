@@ -1,5 +1,12 @@
 # Changelog
 
+- 0.2.0 (2025-06-21)
+  * The 'xprv' and 'tprv' functions are now total, returning 'Nothing' when
+    derivation is impossible.
+  * The 'XPrv', 'XPub', and 'X' constructors are no longer exported.
+    Instead, use the 'x{prv,pub}_key' and 'x{prv,pub}_cod' functions to
+    work with their contents.
+
 - 0.1.1 (2025-02-23)
   * Haddock improvements and examples.
 
