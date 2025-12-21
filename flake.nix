@@ -18,6 +18,7 @@
       url  = "git://git.ppad.tech/base58.git";
       ref  = "master";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
+      inputs.ppad-base16.follows = "ppad-base16";
       inputs.ppad-sha256.follows = "ppad-sha256";
     };
     ppad-sha256 = {
@@ -25,24 +26,28 @@
       url  = "git://git.ppad.tech/sha256.git";
       ref  = "master";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
+      inputs.ppad-base16.follows = "ppad-base16";
     };
     ppad-sha512 = {
       type = "git";
       url  = "git://git.ppad.tech/sha512.git";
       ref  = "master";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
+      inputs.ppad-base16.follows = "ppad-base16";
     };
     ppad-ripemd160 = {
       type = "git";
       url  = "git://git.ppad.tech/ripemd160.git";
       ref  = "master";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
+      inputs.ppad-base16.follows = "ppad-base16";
     };
     ppad-secp256k1 = {
       type = "git";
       url  = "git://git.ppad.tech/secp256k1.git";
       ref  = "master";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
+      inputs.ppad-base16.follows = "ppad-base16";
       inputs.ppad-sha256.follows = "ppad-sha256";
       inputs.ppad-sha512.follows = "ppad-sha512";
     };
@@ -87,8 +92,6 @@
               cabal
               cc
             ];
-
-            inputsFrom = builtins.attrValues self.packages.${system};
 
             doBenchmark = true;
 
