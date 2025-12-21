@@ -1,5 +1,9 @@
 # Changelog
 
+- 0.3.0 (2025-12-21)
+  * Upgrades to ppad-secp256k1 v0.5, with significant performance
+    improvements as a result.
+
 - 0.2.0 (2025-06-21)
   * The 'xprv' and 'tprv' functions are now total, returning 'Nothing' when
     derivation is impossible.
