@@ -54,6 +54,17 @@ module Crypto.HDKey.BIP32 (
   -- * Child key derivation functions
   , derive_child_pub
   , derive_child_priv
+
+  -- * Fast wNAF variants
+  , Context
+  , precompute
+  , ckd_priv'
+  , ckd_pub'
+  , n'
+  , derive'
+  , derive_partial'
+  , derive_child_priv'
+  , derive_child_pub'
   ) where
 
 import Control.Monad (guard)
@@ -77,6 +88,20 @@ import qualified GHC.Exts as Exts
 import GHC.Generics
 import qualified GHC.Word (Word8(..))
 import qualified Numeric.Montgomery.Secp256k1.Scalar as S
+
+-- | Precomputed multiples of the secp256k1 generator point, for faster
+--   scalar multiplication.
+type Context = Secp256k1.Context
+
+-- | Create a secp256k1 context by precomputing multiples of the curve's
+--   generator point.
+--
+--   This should be computed once and reused for all derivations.
+--
+--   >>> let !ctx = precompute
+--   >>> derive' ctx hd "m/44'/0'/0'/0/0"
+precompute :: Context
+precompute = Secp256k1.precompute
 
 -- parsing utilities ----------------------------------------------------------
 
@@ -334,6 +359,48 @@ n (XPrv (X sec cod)) = case Secp256k1.mul Secp256k1._CURVE_G sec of
   Nothing -> error "ppad-bip32 (n): internal error, evil extended key"
   Just p -> XPub (X p cod)
 
+-- fast variants --------------------------------------------------------------
+
+-- | The same as 'ckd_priv', but uses a 'Context' to optimise internal
+--   calculations.
+ckd_priv' :: Context -> XPrv -> Word32 -> XPrv
+ckd_priv' ctx _xprv@(XPrv (X sec cod)) i =
+    let l = SHA512.hmac cod dat
+        (il, ci) = BS.splitAt 32 l
+        pil = unsafe_roll32 il -- safe due to 512-bit hmac
+        ki  = S.from (S.to pil + S.to sec)
+    in  if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negl
+        then ckd_priv' ctx _xprv (succ i)
+        else XPrv (X ki ci)
+  where
+    dat | hardened i = BS.singleton 0x00 <> unroll32 sec <> ser32 i
+        | otherwise  = case Secp256k1.mul_wnaf ctx sec of
+            Nothing ->
+              error "ppad-bip32 (ckd_priv'): internal error, evil extended key"
+            Just p  -> Secp256k1.serialize_point p <> ser32 i
+
+-- | The same as 'ckd_pub', but uses a 'Context' to optimise internal
+--   calculations.
+ckd_pub' :: Context -> XPub -> Word32 -> Maybe XPub
+ckd_pub' ctx _xpub@(XPub (X pub cod)) i
+  | hardened i = Nothing
+  | otherwise = do
+      let dat = Secp256k1.serialize_point pub <> ser32 i
+          l   = SHA512.hmac cod dat
+          (il, ci) = BS.splitAt 32 l
+          pil = unsafe_roll32 il -- safe due to 512-bit hmac
+      pt <- Secp256k1.mul_wnaf ctx pil
+      let  ki = pt `Secp256k1.add` pub
+      if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
+      then ckd_pub' ctx _xpub (succ i)
+      else pure (XPub (X ki ci))
+
+-- | The same as 'n', but uses a 'Context' to optimise internal calculations.
+n' :: Context -> XPrv -> XPub
+n' ctx (XPrv (X sec cod)) = case Secp256k1.mul_wnaf ctx sec of
+  Nothing -> error "ppad-bip32 (n'): internal error, evil extended key"
+  Just p -> XPub (X p cod)
+
 -- hierarchical deterministic keys --------------------------------------------
 
 -- | A BIP32 hierarchical deterministic key.
@@ -403,6 +470,33 @@ derive_child_pub HDKey {..} i = do
       pure $! (pub, fingerprint _xpub)
     Right _xprv ->
       let pub = n (ckd_priv _xprv i)
+      in  pure $! (pub, fingerprint _xprv)
+  let depth = hd_depth + 1
+      child = ser32 i
+  pure $! HDKey (Left key) depth parent child
+
+-- | The same as 'derive_child_priv', but uses a 'Context' to optimise
+--   internal calculations.
+derive_child_priv' :: Context -> HDKey -> Word32 -> Maybe HDKey
+derive_child_priv' ctx HDKey {..} i = case hd_key of
+  Left _ -> Nothing
+  Right _xprv -> pure $!
+    let key   = Right (ckd_priv' ctx _xprv i)
+        depth = hd_depth + 1
+        parent = fingerprint _xprv
+        child = ser32 i
+    in  HDKey key depth parent child
+
+-- | The same as 'derive_child_pub', but uses a 'Context' to optimise
+--   internal calculations.
+derive_child_pub' :: Context -> HDKey -> Word32 -> Maybe HDKey
+derive_child_pub' ctx HDKey {..} i = do
+  (key, parent) <- case hd_key of
+    Left _xpub  -> do
+      pub <- ckd_pub' ctx _xpub i
+      pure $! (pub, fingerprint _xpub)
+    Right _xprv ->
+      let pub = n' ctx (ckd_priv' ctx _xprv i)
       in  pure $! (pub, fingerprint _xprv)
   let depth = hd_depth + 1
       child = ser32 i
@@ -482,6 +576,44 @@ derive_partial
   -> HDKey
 derive_partial hd pat = case derive hd pat of
   Nothing -> error "ppad-bip32 (derive_partial): couldn't derive extended key"
+  Just hdkey -> hdkey
+
+-- | The same as 'derive', but uses a 'Context' to optimise internal
+--   calculations.
+--
+--   >>> let !ctx = precompute
+--   >>> let Just child = derive' ctx hd "m/44'/0'/0'/0/0"
+derive'
+  :: Context
+  -> HDKey
+  -> BS.ByteString -- ^ derivation path
+  -> Maybe HDKey
+derive' ctx hd pat = case parse_path pat of
+    Nothing -> Nothing
+    Just p  -> go p
+  where
+    go = \case
+      M -> pure hd
+      p :| i -> do
+        hdkey <- go p
+        derive_child_priv' ctx hdkey (0x8000_0000 + i) -- 2 ^ 31
+      p :/ i -> do
+        hdkey <- go p
+        derive_child_priv' ctx hdkey i
+
+-- | The same as 'derive_partial', but uses a 'Context' to optimise internal
+--   calculations.
+--
+--   >>> let !ctx = precompute
+--   >>> let child = derive_partial' ctx hd "m/44'/0'/0'/0/0"
+derive_partial'
+  :: Context
+  -> HDKey
+  -> BS.ByteString
+  -> HDKey
+derive_partial' ctx hd pat = case derive' ctx hd pat of
+  Nothing ->
+    error "ppad-bip32 (derive_partial'): couldn't derive extended key"
   Just hdkey -> hdkey
 
 -- serialization --------------------------------------------------------------
