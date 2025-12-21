@@ -53,17 +53,17 @@ Current benchmark figures on an M4 Silicon MacBook Air look like (use
 `cabal bench` to run the benchmark suite):
 
 ```
-  benchmarking ppad-bip32/derive_child_pub
-  time                 426.1 μs   (425.1 μs .. 427.1 μs)
+  benchmarking ppad-bip32 (wNAF)/derive_child_pub'
+  time                 184.0 μs   (183.9 μs .. 184.2 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 424.5 μs   (423.9 μs .. 425.4 μs)
-  std dev              2.450 μs   (1.972 μs .. 3.001 μs)
+  mean                 184.2 μs   (184.1 μs .. 184.4 μs)
+  std dev              502.2 ns   (282.7 ns .. 986.8 ns)
 
-  benchmarking ppad-bip32/derive_child_priv
-  time                 291.2 μs   (290.5 μs .. 291.7 μs)
+  benchmarking ppad-bip32 (wNAF)/derive_child_priv'
+  time                 170.4 μs   (170.3 μs .. 170.6 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 290.4 μs   (289.9 μs .. 290.8 μs)
-  std dev              1.595 μs   (1.411 μs .. 1.876 μs)
+  mean                 170.6 μs   (170.5 μs .. 170.7 μs)
+  std dev              430.8 ns   (314.5 ns .. 600.4 ns)
 
   benchmarking ppad-bip32/xpub
   time                 151.4 μs   (151.2 μs .. 151.6 μs)
@@ -91,9 +91,10 @@ garbage-collected language under an optimizing compiler such as GHC, in
 which strict constant-timeness can be [challenging to achieve][const].
 
 The implementation within passes the official [BIP32 test
-vectors](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#test-vectors), and all derivations involving secret keys execute
-*algorithmically* in constant time -- see the "Security" notes in the
-README of [ppad-secp256k1][secp] for more details.
+vectors](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#
+test-vectors), and all derivations involving secret keys execute in
+constant time, and with constant allocation -- see the "Security" notes
+in the README of [ppad-secp256k1][secp] for more details.
 
 If you discover any vulnerabilities, please disclose them via
 security@ppad.tech.
