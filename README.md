@@ -45,43 +45,43 @@ Haddocks (API documentation, etc.) are hosted at
 
 ## Performance
 
-The aim is best-in-class performance for pure, highly-auditable Haskell
-code. Most time is spent on elliptic curve multiplication or hashing;
-strict BIP32 functionality is only a small layer on top of that.
+The aim is best-in-class performance for pure Haskell code. Most time
+is spent on elliptic curve multiplication or hashing; strict BIP32
+functionality is only a small layer on top of that.
 
 Current benchmark figures on an M4 Silicon MacBook Air look like (use
 `cabal bench` to run the benchmark suite):
 
 ```
   benchmarking ppad-bip32/derive_child_pub
-  time                 2.668 ms   (2.663 ms .. 2.672 ms)
+  time                 426.1 μs   (425.1 μs .. 427.1 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 2.661 ms   (2.658 ms .. 2.664 ms)
-  std dev              8.440 μs   (6.211 μs .. 13.00 μs)
+  mean                 424.5 μs   (423.9 μs .. 425.4 μs)
+  std dev              2.450 μs   (1.972 μs .. 3.001 μs)
 
   benchmarking ppad-bip32/derive_child_priv
-  time                 1.784 ms   (1.783 ms .. 1.785 ms)
+  time                 291.2 μs   (290.5 μs .. 291.7 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 1.781 ms   (1.780 ms .. 1.782 ms)
-  std dev              2.300 μs   (1.939 μs .. 2.835 μs)
+  mean                 290.4 μs   (289.9 μs .. 290.8 μs)
+  std dev              1.595 μs   (1.411 μs .. 1.876 μs)
 
   benchmarking ppad-bip32/xpub
-  time                 901.1 μs   (900.0 μs .. 902.3 μs)
+  time                 151.4 μs   (151.2 μs .. 151.6 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 900.3 μs   (899.7 μs .. 901.7 μs)
-  std dev              3.053 μs   (1.724 μs .. 5.362 μs)
+  mean                 151.1 μs   (150.9 μs .. 151.3 μs)
+  std dev              608.5 ns   (449.2 ns .. 919.9 ns)
 
   benchmarking ppad-bip32/xprv
-  time                 8.665 μs   (8.656 μs .. 8.673 μs)
+  time                 8.374 μs   (8.363 μs .. 8.386 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 8.667 μs   (8.663 μs .. 8.670 μs)
-  std dev              12.75 ns   (9.805 ns .. 17.26 ns)
+  mean                 8.390 μs   (8.379 μs .. 8.409 μs)
+  std dev              47.10 ns   (31.45 ns .. 76.90 ns)
 
   benchmarking ppad-bip32/parse
-  time                 9.295 μs   (9.273 μs .. 9.330 μs)
+  time                 8.576 μs   (8.573 μs .. 8.580 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 9.294 μs   (9.288 μs .. 9.308 μs)
-  std dev              27.58 ns   (11.06 ns .. 55.76 ns)
+  mean                 8.567 μs   (8.559 μs .. 8.574 μs)
+  std dev              25.37 ns   (21.07 ns .. 30.30 ns)
 ```
 
 ## Security

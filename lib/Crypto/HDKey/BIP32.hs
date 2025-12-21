@@ -3,9 +3,11 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE ViewPatterns #-}
 
 -- |
@@ -59,14 +61,103 @@ import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Crypto.Hash.SHA512 as SHA512
 import qualified Crypto.Hash.RIPEMD160 as RIPEMD160
 import qualified Crypto.Curve.Secp256k1 as Secp256k1
-import Data.Bits ((.<<.), (.>>.), (.|.), (.&.))
+import Data.Bits ((.>>.), (.&.))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Base58Check as B58C
 import qualified Data.ByteString.Builder as BSB
 import qualified Data.ByteString.Internal as BI
+import qualified Data.ByteString.Unsafe as BU
 import Data.Word (Word8, Word32)
+import Data.Word.Limb (Limb(..))
+import qualified Data.Word.Limb as L
+import Data.Word.Wider (Wider(..))
+import qualified Foreign.Storable as Storable (pokeByteOff)
+import qualified GHC.Exts as Exts
 import GHC.Generics
+import qualified GHC.Word (Word8(..))
+import qualified Numeric.Montgomery.Secp256k1.Scalar as S
+
+-- parsing utilities ----------------------------------------------------------
+
+-- convert a Word8 to a Limb
+limb :: Word8 -> Limb
+limb (GHC.Word.W8# (Exts.word8ToWord# -> w)) = Limb w
+{-# INLINABLE limb #-}
+
+-- convert a Limb to a Word8
+word8 :: Limb -> Word8
+word8 (Limb w) = GHC.Word.W8# (Exts.wordToWord8# w)
+{-# INLINABLE word8 #-}
+
+-- unsafely extract the first 64-bit word from a big-endian-encoded bytestring
+unsafe_word0 :: BS.ByteString -> Limb
+unsafe_word0 bs =
+          (limb (BU.unsafeIndex bs 00) `L.shl#` 56#)
+  `L.or#` (limb (BU.unsafeIndex bs 01) `L.shl#` 48#)
+  `L.or#` (limb (BU.unsafeIndex bs 02) `L.shl#` 40#)
+  `L.or#` (limb (BU.unsafeIndex bs 03) `L.shl#` 32#)
+  `L.or#` (limb (BU.unsafeIndex bs 04) `L.shl#` 24#)
+  `L.or#` (limb (BU.unsafeIndex bs 05) `L.shl#` 16#)
+  `L.or#` (limb (BU.unsafeIndex bs 06) `L.shl#` 08#)
+  `L.or#` (limb (BU.unsafeIndex bs 07))
+{-# INLINABLE unsafe_word0 #-}
+
+-- unsafely extract the second 64-bit word from a big-endian-encoded bytestring
+unsafe_word1 :: BS.ByteString -> Limb
+unsafe_word1 bs =
+          (limb (BU.unsafeIndex bs 08) `L.shl#` 56#)
+  `L.or#` (limb (BU.unsafeIndex bs 09) `L.shl#` 48#)
+  `L.or#` (limb (BU.unsafeIndex bs 10) `L.shl#` 40#)
+  `L.or#` (limb (BU.unsafeIndex bs 11) `L.shl#` 32#)
+  `L.or#` (limb (BU.unsafeIndex bs 12) `L.shl#` 24#)
+  `L.or#` (limb (BU.unsafeIndex bs 13) `L.shl#` 16#)
+  `L.or#` (limb (BU.unsafeIndex bs 14) `L.shl#` 08#)
+  `L.or#` (limb (BU.unsafeIndex bs 15))
+{-# INLINABLE unsafe_word1 #-}
+
+-- unsafely extract the third 64-bit word from a big-endian-encoded bytestring
+unsafe_word2 :: BS.ByteString -> Limb
+unsafe_word2 bs =
+          (limb (BU.unsafeIndex bs 16) `L.shl#` 56#)
+  `L.or#` (limb (BU.unsafeIndex bs 17) `L.shl#` 48#)
+  `L.or#` (limb (BU.unsafeIndex bs 18) `L.shl#` 40#)
+  `L.or#` (limb (BU.unsafeIndex bs 19) `L.shl#` 32#)
+  `L.or#` (limb (BU.unsafeIndex bs 20) `L.shl#` 24#)
+  `L.or#` (limb (BU.unsafeIndex bs 21) `L.shl#` 16#)
+  `L.or#` (limb (BU.unsafeIndex bs 22) `L.shl#` 08#)
+  `L.or#` (limb (BU.unsafeIndex bs 23))
+{-# INLINABLE unsafe_word2 #-}
+
+-- unsafely extract the fourth 64-bit word from a big-endian-encoded bytestring
+unsafe_word3 :: BS.ByteString -> Limb
+unsafe_word3 bs =
+          (limb (BU.unsafeIndex bs 24) `L.shl#` 56#)
+  `L.or#` (limb (BU.unsafeIndex bs 25) `L.shl#` 48#)
+  `L.or#` (limb (BU.unsafeIndex bs 26) `L.shl#` 40#)
+  `L.or#` (limb (BU.unsafeIndex bs 27) `L.shl#` 32#)
+  `L.or#` (limb (BU.unsafeIndex bs 28) `L.shl#` 24#)
+  `L.or#` (limb (BU.unsafeIndex bs 29) `L.shl#` 16#)
+  `L.or#` (limb (BU.unsafeIndex bs 30) `L.shl#` 08#)
+  `L.or#` (limb (BU.unsafeIndex bs 31))
+{-# INLINABLE unsafe_word3 #-}
+
+-- 256-bit big-endian bytestring decoding. the input size is not checked!
+unsafe_roll32 :: BS.ByteString -> Wider
+unsafe_roll32 bs =
+  let !w0 = unsafe_word0 bs
+      !w1 = unsafe_word1 bs
+      !w2 = unsafe_word2 bs
+      !w3 = unsafe_word3 bs
+  in  Wider (# w3, w2, w1, w0 #)
+{-# INLINABLE unsafe_roll32 #-}
+
+-- convert a Limb to a Word8 after right-shifting
+word8s :: Limb -> Exts.Int# -> Word8
+word8s l s =
+  let !(Limb w) = L.shr# l s
+  in  GHC.Word.W8# (Exts.wordToWord8# w)
+{-# INLINABLE word8s #-}
 
 -- utilities ------------------------------------------------------------------
 
@@ -74,29 +165,47 @@ fi :: (Integral a, Num b) => a -> b
 fi = fromIntegral
 {-# INLINE fi #-}
 
--- big-endian bytestring encoding
-unroll :: Integer -> BS.ByteString
-unroll i = case i of
-    0 -> BS.singleton 0
-    _ -> BS.reverse $ BS.unfoldr coalg i
-  where
-    coalg 0 = Nothing
-    coalg m = Just (fi m, m .>>. 8)
-
--- parse 32 bytes to a 256-bit integer
-parse256 :: BS.ByteString -> Integer
-parse256 bs@(BI.PS _ _ l)
-    | l == 32   = BS.foldl' alg 0 bs
-    | otherwise = error "ppad-bip32 (parse256): internal error"
-  where
-    alg !a (fi -> !b) = (a .<<. 8) .|. b
-
--- serialize a 256-bit integer to 32 bytes, left-padding with zeros if
--- necessary. the size of the integer is not checked.
-ser256 :: Integer -> BS.ByteString
-ser256 (unroll -> u@(BI.PS _ _ l))
-  | l < 32 = BS.replicate (32 - l) 0 <> u
-  | otherwise = u
+-- 256-bit big-endian bytestring encoding
+unroll32 :: Wider -> BS.ByteString
+unroll32 (Wider (# w0, w1, w2, w3 #)) =
+  BI.unsafeCreate 32 $ \ptr -> do
+    -- w0
+    Storable.pokeByteOff ptr 00 (word8s w3 56#)
+    Storable.pokeByteOff ptr 01 (word8s w3 48#)
+    Storable.pokeByteOff ptr 02 (word8s w3 40#)
+    Storable.pokeByteOff ptr 03 (word8s w3 32#)
+    Storable.pokeByteOff ptr 04 (word8s w3 24#)
+    Storable.pokeByteOff ptr 05 (word8s w3 16#)
+    Storable.pokeByteOff ptr 06 (word8s w3 08#)
+    Storable.pokeByteOff ptr 07 (word8 w3)
+    -- w1
+    Storable.pokeByteOff ptr 08 (word8s w2 56#)
+    Storable.pokeByteOff ptr 09 (word8s w2 48#)
+    Storable.pokeByteOff ptr 10 (word8s w2 40#)
+    Storable.pokeByteOff ptr 11 (word8s w2 32#)
+    Storable.pokeByteOff ptr 12 (word8s w2 24#)
+    Storable.pokeByteOff ptr 13 (word8s w2 16#)
+    Storable.pokeByteOff ptr 14 (word8s w2 08#)
+    Storable.pokeByteOff ptr 15 (word8 w2)
+    -- w2
+    Storable.pokeByteOff ptr 16 (word8s w1 56#)
+    Storable.pokeByteOff ptr 17 (word8s w1 48#)
+    Storable.pokeByteOff ptr 18 (word8s w1 40#)
+    Storable.pokeByteOff ptr 19 (word8s w1 32#)
+    Storable.pokeByteOff ptr 20 (word8s w1 24#)
+    Storable.pokeByteOff ptr 21 (word8s w1 16#)
+    Storable.pokeByteOff ptr 22 (word8s w1 08#)
+    Storable.pokeByteOff ptr 23 (word8 w1)
+    -- w3
+    Storable.pokeByteOff ptr 24 (word8s w0 56#)
+    Storable.pokeByteOff ptr 25 (word8s w0 48#)
+    Storable.pokeByteOff ptr 26 (word8s w0 40#)
+    Storable.pokeByteOff ptr 27 (word8s w0 32#)
+    Storable.pokeByteOff ptr 28 (word8s w0 24#)
+    Storable.pokeByteOff ptr 29 (word8s w0 16#)
+    Storable.pokeByteOff ptr 30 (word8s w0 08#)
+    Storable.pokeByteOff ptr 31 (word8 w0)
+{-# INLINABLE unroll32 #-}
 
 -- serialize a 32-bit word, MSB first
 ser32 :: Word32 -> BS.ByteString
@@ -123,11 +232,11 @@ xpub_cod :: XPub -> BS.ByteString
 xpub_cod (XPub (X _ cod)) = cod
 
 -- | An extended private key.
-newtype XPrv = XPrv (X Integer)
+newtype XPrv = XPrv (X Wider)
   deriving (Eq, Show, Generic)
 
 -- | Read the raw private key from an 'XPrv'.
-xprv_key :: XPrv -> Integer
+xprv_key :: XPrv -> Wider
 xprv_key (XPrv (X sec _)) = sec
 
 -- | Read the raw chain code from an 'XPrv'.
@@ -184,7 +293,7 @@ _master seed@(BI.PS _ _ l)
   | otherwise = do
       let i = SHA512.hmac "Bitcoin seed" seed
           (il, c) = BS.splitAt 32 i
-          s = parse256 il -- safe due to 512-bit hmac
+          s = unsafe_roll32 il -- safe due to 512-bit hmac
       pure $! (XPrv (X s c))
 
 -- private parent key -> private child key
@@ -192,13 +301,13 @@ ckd_priv :: XPrv -> Word32 -> XPrv
 ckd_priv _xprv@(XPrv (X sec cod)) i =
     let l = SHA512.hmac cod dat
         (il, ci) = BS.splitAt 32 l
-        pil = parse256 il -- safe due to 512-bit hmac
-        ki  = Secp256k1.modQ (pil + sec)
+        pil = unsafe_roll32 il -- safe due to 512-bit hmac
+        ki  = S.from (S.to pil + S.to sec)
     in  if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negl
         then ckd_priv _xprv (succ i)
         else XPrv (X ki ci)
   where
-    dat | hardened i = BS.singleton 0x00 <> ser256 sec <> ser32 i
+    dat | hardened i = BS.singleton 0x00 <> unroll32 sec <> ser32 i
         | otherwise  = case Secp256k1.mul Secp256k1._CURVE_G sec of
             Nothing ->
               error "ppad-bip32 (ckd_priv): internal error, evil extended key"
@@ -212,8 +321,8 @@ ckd_pub _xpub@(XPub (X pub cod)) i
       let dat = Secp256k1.serialize_point pub <> ser32 i
           l   = SHA512.hmac cod dat
           (il, ci) = BS.splitAt 32 l
-          pil = parse256 il -- safe due to 512-bit hmac
-      pt <- Secp256k1.mul_unsafe Secp256k1._CURVE_G pil
+          pil = unsafe_roll32 il -- safe due to 512-bit hmac
+      pt <- Secp256k1.mul_vartime Secp256k1._CURVE_G pil
       let  ki = pt `Secp256k1.add` pub
       if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
       then ckd_pub _xpub (succ i)
@@ -457,7 +566,7 @@ _serialize version HDKey {..} =
        Right (XPrv (X sec cod)) ->
             BSB.byteString cod
          <> BSB.word8 0x00
-         <> BSB.byteString (ser256 sec)
+         <> BSB.byteString (unroll32 sec)
 
 -- parsing --------------------------------------------------------------------
 
@@ -505,7 +614,7 @@ parse b58 = do
           let hd_key = Left (XPub (X pub cod))
           pure HDKey {..}
         Prv -> do
-          (b, parse256 -> prv) <- BS.uncons key -- safe due to guarded keylen
+          (b, unsafe_roll32 -> prv) <- BS.uncons key -- safe, guarded keylen
           guard (b == 0)
           guard (prv > 0 && prv < Secp256k1._CURVE_Q)
           let hd_key = Right (XPrv (X prv cod))

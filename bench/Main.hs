@@ -11,9 +11,10 @@ import Crypto.HDKey.BIP32
 import Control.DeepSeq
 import Crypto.Curve.Secp256k1 as S
 import qualified Data.Maybe as M
+import qualified Data.Word.Wider as W
 
 instance NFData S.Projective
-instance NFData (X Integer)
+instance NFData (X W.Wider)
 instance NFData (X S.Projective)
 instance NFData XPub
 instance NFData XPrv

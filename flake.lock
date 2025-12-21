@@ -142,19 +142,16 @@
     "ppad-fixed": {
       "inputs": {
         "flake-utils": [
-          "ppad-secp256k1",
           "ppad-fixed",
           "ppad-nixpkgs",
           "flake-utils"
         ],
         "nixpkgs": [
-          "ppad-secp256k1",
           "ppad-fixed",
           "ppad-nixpkgs",
           "nixpkgs"
         ],
         "ppad-nixpkgs": [
-          "ppad-secp256k1",
           "ppad-nixpkgs"
         ]
       },
@@ -285,7 +282,9 @@
         "ppad-base16": [
           "ppad-base16"
         ],
-        "ppad-fixed": "ppad-fixed",
+        "ppad-fixed": [
+          "ppad-fixed"
+        ],
         "ppad-hmac-drbg": "ppad-hmac-drbg",
         "ppad-nixpkgs": [
           "ppad-nixpkgs"
@@ -392,6 +391,7 @@
         ],
         "ppad-base16": "ppad-base16",
         "ppad-base58": "ppad-base58",
+        "ppad-fixed": "ppad-fixed",
         "ppad-nixpkgs": "ppad-nixpkgs",
         "ppad-ripemd160": "ppad-ripemd160",
         "ppad-secp256k1": "ppad-secp256k1",
