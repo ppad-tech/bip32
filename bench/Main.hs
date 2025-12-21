@@ -9,7 +9,7 @@ module Main where
 import Criterion.Main
 import Crypto.HDKey.BIP32
 import Control.DeepSeq
-import Crypto.Curve.Secp256k1 as S
+import qualified Crypto.Curve.Secp256k1 as S
 import qualified Data.Maybe as M
 import qualified Data.Word.Wider as W
 
@@ -20,6 +20,10 @@ instance NFData XPub
 instance NFData XPrv
 instance NFData HDKey
 
+-- precomputed context for wNAF benchmarks
+ctx :: Context
+ctx = precompute
+
 main :: IO ()
 main = defaultMain [
     bgroup "ppad-bip32" [
@@ -29,7 +33,11 @@ main = defaultMain [
       , bench_xpub
       , bench_xprv
       , bench_parse
-    ]
+      ]
+  , bgroup "ppad-bip32 (wNAF)" [
+        bench_derive_pub_wnaf
+      , bench_derive_priv_wnaf
+      ]
   ]
 
 m :: HDKey
@@ -54,4 +62,14 @@ bench_xprv = bench "xprv" $ nf xprv m
 
 bench_parse :: Benchmark
 bench_parse = bench "parse" $ nf parse (M.fromJust (xprv m))
+
+-- wNAF variants
+
+bench_derive_pub_wnaf :: Benchmark
+bench_derive_pub_wnaf =
+  bench "derive_child_pub'" $ nf (derive_child_pub' ctx m) 0
+
+bench_derive_priv_wnaf :: Benchmark
+bench_derive_priv_wnaf =
+  bench "derive_child_priv'" $ nf (derive_child_priv' ctx m) 0
 

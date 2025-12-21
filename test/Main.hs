@@ -15,13 +15,25 @@ xprv_partial val = case xprv val of
   Nothing -> error "bang"
   Just v -> v
 
+-- precomputed context for wNAF tests
+ctx :: Context
+ctx = precompute
+
 main :: IO ()
 main = defaultMain $ testGroup "BIP32 vectors" [
-    vector_1
-  , vector_2
-  , vector_3
-  , vector_4
-  , vector_5
+    testGroup "standard" [
+        vector_1
+      , vector_2
+      , vector_3
+      , vector_4
+      , vector_5
+      ]
+  , testGroup "wNAF" [
+        vector_1_wnaf
+      , vector_2_wnaf
+      , vector_3_wnaf
+      , vector_4_wnaf
+      ]
   ]
 
 seed_1 :: BS.ByteString
@@ -205,4 +217,138 @@ vector_5 = H.testCase "BIP32 vector 5" $ do
   H.assertEqual "k14" Nothing (parse "xpub661MyMwAqRbcEYS8w7XLSVeEsBXy79zSzH1J8vCdxAZningWLdN3zgtU6Q5JXayek4PRsn35jii4veMimro1xefsM58PgBMrvdYre8QyULY")
   H.assertEqual "k15" Nothing (parse "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHL")
 
+-- wNAF variants --------------------------------------------------------------
 
+vector_1_wnaf :: TestTree
+vector_1_wnaf = H.testCase "BIP32 vector 1 (wNAF)" $ do
+  let Just _m = master seed_1
+  H.assertEqual "M" xpub_1_m (xpub _m)
+  H.assertEqual "m" xprv_1_m (xprv_partial _m)
+  let Just _m_0' = derive_child_priv' ctx _m 0x80000000
+  H.assertEqual "M/0'" xpub_1_m_0' (xpub _m_0')
+  H.assertEqual "m/0'" xprv_1_m_0' (xprv_partial _m_0')
+  H.assertEqual "M/0', path" xpub_1_m_0'
+    (xpub (derive_partial' ctx _m "m/0'"))
+  H.assertEqual "m/0', path" xprv_1_m_0'
+    (xprv_partial (derive_partial' ctx _m "m/0'"))
+  let Just _m_0'_1 = derive_child_priv' ctx _m_0' 1
+  H.assertEqual "M/0'/1" xpub_1_m_0'_1 (xpub _m_0'_1)
+  H.assertEqual "m/0'/1" xprv_1_m_0'_1 (xprv_partial _m_0'_1)
+  H.assertEqual "M/0'/1" xpub_1_m_0'_1
+    (xpub (derive_partial' ctx _m "m/0'/1"))
+  H.assertEqual "m/0'/1" xprv_1_m_0'_1
+    (xprv_partial (derive_partial' ctx _m "m/0'/1"))
+  let Just _m_0'_1_2' = derive_child_priv' ctx _m_0'_1 (0x80000000 + 2)
+  H.assertEqual "M/0'/1/2'" xpub_1_m_0'_1_2' (xpub _m_0'_1_2')
+  H.assertEqual "m/0'/1/2'" xprv_1_m_0'_1_2' (xprv_partial _m_0'_1_2')
+  H.assertEqual "M/0'/1/2'" xpub_1_m_0'_1_2'
+    (xpub (derive_partial' ctx _m "m/0'/1/2'"))
+  H.assertEqual "m/0'/1/2'" xprv_1_m_0'_1_2'
+    (xprv_partial (derive_partial' ctx _m "m/0'/1/2'"))
+  let Just _m_0'_1_2'_2 = derive_child_priv' ctx _m_0'_1_2' 2
+  H.assertEqual "M/0'/1/2'/2" xpub_1_m_0'_1_2'_2 (xpub _m_0'_1_2'_2)
+  H.assertEqual "m/0'/1/2'/2" xprv_1_m_0'_1_2'_2 (xprv_partial _m_0'_1_2'_2)
+  H.assertEqual "M/0'/1/2'/2" xpub_1_m_0'_1_2'_2
+    (xpub (derive_partial' ctx _m "m/0'/1/2'/2"))
+  H.assertEqual "m/0'/1/2'/2" xprv_1_m_0'_1_2'_2
+    (xprv_partial (derive_partial' ctx _m "m/0'/1/2'/2"))
+  let Just _m_0'_1_2'_2_1000000000 = derive_child_priv' ctx _m_0'_1_2'_2 1000000000
+  H.assertEqual "M/0'/1/2'/2/1000000000" xpub_1_m_0'_1_2'_2_1000000000
+    (xpub _m_0'_1_2'_2_1000000000)
+  H.assertEqual "m/0'/1/2'/2/1000000000" xprv_1_m_0'_1_2'_2_1000000000
+    (xprv_partial _m_0'_1_2'_2_1000000000)
+  H.assertEqual "M/0'/1/2'/2/1000000000" xpub_1_m_0'_1_2'_2_1000000000
+    (xpub (derive_partial' ctx _m "m/0'/1/2'/2/1000000000"))
+  H.assertEqual "m/0'/1/2'/2/1000000000" xprv_1_m_0'_1_2'_2_1000000000
+    (xprv_partial (derive_partial' ctx _m "m/0'/1/2'/2/1000000000"))
+
+vector_2_wnaf :: TestTree
+vector_2_wnaf = H.testCase "BIP32 vector 2 (wNAF)" $ do
+  let Just mas = master seed_2
+      _m = derive_partial' ctx mas "m"
+  H.assertEqual "M"
+    "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
+    (xpub _m)
+  H.assertEqual "m"
+    "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U"
+    (xprv_partial _m)
+  let _m_0 = derive_partial' ctx mas "m/0"
+  H.assertEqual "M/0"
+    "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
+    (xpub _m_0)
+  H.assertEqual "m/0"
+    "xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt"
+    (xprv_partial _m_0)
+  let _m_0_2147483647' = derive_partial' ctx mas "m/0/2147483647'"
+  H.assertEqual "M/0/2147483647'"
+    "xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a"
+    (xpub _m_0_2147483647')
+  H.assertEqual "m/0/2147483647'"
+    "xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9"
+    (xprv_partial _m_0_2147483647')
+  let _m_0_2147483647'_1 = derive_partial' ctx mas "m/0/2147483647'/1"
+  H.assertEqual "M/0/2147483647'/1"
+    "xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon"
+    (xpub _m_0_2147483647'_1)
+  H.assertEqual "m/0/2147483647'/1"
+    "xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef"
+    (xprv_partial _m_0_2147483647'_1)
+  let _m_0_2147483647'_1_2147483646' =
+        derive_partial' ctx mas "m/0/2147483647'/1/2147483646'"
+  H.assertEqual "M/0/2147483647'/1/2147483646'"
+    "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    (xpub _m_0_2147483647'_1_2147483646')
+  H.assertEqual "m/0/2147483647'/1/2147483646'"
+    "xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc"
+    (xprv_partial _m_0_2147483647'_1_2147483646')
+  let _m_0_2147483647'_1_2147483646'_2 =
+        derive_partial' ctx mas "m/0/2147483647'/1/2147483646'/2"
+  H.assertEqual "M/0/2147483647'/1/2147483646'/2"
+    "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
+    (xpub _m_0_2147483647'_1_2147483646'_2)
+  H.assertEqual "m/0/2147483647'/1/2147483646'/2"
+    "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j"
+    (xprv_partial _m_0_2147483647'_1_2147483646'_2)
+
+vector_3_wnaf :: TestTree
+vector_3_wnaf = H.testCase "BIP32 vector 3 (wNAF)" $ do
+  let Just mas = master seed_3
+      _m = derive_partial' ctx mas "m"
+  H.assertEqual "M"
+    "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
+    (xpub _m)
+  H.assertEqual "m"
+    "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6"
+    (xprv_partial _m)
+  let _m_0' = derive_partial' ctx mas "m/0'"
+  H.assertEqual "M/0'"
+    "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+    (xpub _m_0')
+  H.assertEqual "m/0'"
+    "xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L"
+    (xprv_partial _m_0')
+
+vector_4_wnaf :: TestTree
+vector_4_wnaf = H.testCase "BIP32 vector 4 (wNAF)" $ do
+  let Just mas = master seed_4
+      _m = derive_partial' ctx mas "m"
+  H.assertEqual "M"
+    "xpub661MyMwAqRbcGczjuMoRm6dXaLDEhW1u34gKenbeYqAix21mdUKJyuyu5F1rzYGVxyL6tmgBUAEPrEz92mBXjByMRiJdba9wpnN37RLLAXa"
+    (xpub _m)
+  H.assertEqual "m"
+    "xprv9s21ZrQH143K48vGoLGRPxgo2JNkJ3J3fqkirQC2zVdk5Dgd5w14S7fRDyHH4dWNHUgkvsvNDCkvAwcSHNAQwhwgNMgZhLtQC63zxwhQmRv"
+    (xprv_partial _m)
+  let _m_0' = derive_partial' ctx mas "m/0'"
+  H.assertEqual "M/0'"
+    "xpub69AUMk3qDBi3uW1sXgjCmVjJ2G6WQoYSnNHyzkmdCHEhSZ4tBok37xfFEqHd2AddP56Tqp4o56AePAgCjYdvpW2PU2jbUPFKsav5ut6Ch1m"
+    (xpub _m_0')
+  H.assertEqual "m/0'"
+    "xprv9vB7xEWwNp9kh1wQRfCCQMnZUEG21LpbR9NPCNN1dwhiZkjjeGRnaALmPXCX7SgjFTiCTT6bXes17boXtjq3xLpcDjzEuGLQBM5ohqkao9G"
+    (xprv_partial _m_0')
+  let _m_0'_1' = derive_partial' ctx mas "m/0'/1'"
+  H.assertEqual "M/0'/1'"
+    "xpub6BJA1jSqiukeaesWfxe6sNK9CCGaujFFSJLomWHprUL9DePQ4JDkM5d88n49sMGJxrhpjazuXYWdMf17C9T5XnxkopaeS7jGk1GyyVziaMt"
+    (xpub _m_0'_1')
+  H.assertEqual "m/0'/1'"
+    "xprv9xJocDuwtYCMNAo3Zw76WENQeAS6WGXQ55RCy7tDJ8oALr4FWkuVoHJeHVAcAqiZLE7Je3vZJHxspZdFHfnBEjHqU5hG1Jaj32dVoS6XLT1"
+    (xprv_partial _m_0'_1')
