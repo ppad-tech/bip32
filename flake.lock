@@ -136,31 +136,25 @@
     "ppad-hmac-drbg": {
       "inputs": {
         "flake-utils": [
-          "ppad-secp256k1",
           "ppad-hmac-drbg",
           "ppad-nixpkgs",
           "flake-utils"
         ],
         "nixpkgs": [
-          "ppad-secp256k1",
           "ppad-hmac-drbg",
           "ppad-nixpkgs",
           "nixpkgs"
         ],
         "ppad-base16": [
-          "ppad-secp256k1",
           "ppad-base16"
         ],
         "ppad-nixpkgs": [
-          "ppad-secp256k1",
           "ppad-nixpkgs"
         ],
         "ppad-sha256": [
-          "ppad-secp256k1",
           "ppad-sha256"
         ],
         "ppad-sha512": [
-          "ppad-secp256k1",
           "ppad-sha512"
         ]
       },
@@ -251,7 +245,9 @@
         "ppad-fixed": [
           "ppad-fixed"
         ],
-        "ppad-hmac-drbg": "ppad-hmac-drbg",
+        "ppad-hmac-drbg": [
+          "ppad-hmac-drbg"
+        ],
         "ppad-nixpkgs": [
           "ppad-nixpkgs"
         ],
@@ -358,6 +354,7 @@
         "ppad-base16": "ppad-base16",
         "ppad-base58": "ppad-base58",
         "ppad-fixed": "ppad-fixed",
+        "ppad-hmac-drbg": "ppad-hmac-drbg",
         "ppad-nixpkgs": "ppad-nixpkgs",
         "ppad-ripemd160": "ppad-ripemd160",
         "ppad-secp256k1": "ppad-secp256k1",
