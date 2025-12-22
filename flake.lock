@@ -136,25 +136,31 @@
     "ppad-hmac-drbg": {
       "inputs": {
         "flake-utils": [
+          "ppad-secp256k1",
           "ppad-hmac-drbg",
           "ppad-nixpkgs",
           "flake-utils"
         ],
         "nixpkgs": [
+          "ppad-secp256k1",
           "ppad-hmac-drbg",
           "ppad-nixpkgs",
           "nixpkgs"
         ],
         "ppad-base16": [
+          "ppad-secp256k1",
           "ppad-base16"
         ],
         "ppad-nixpkgs": [
+          "ppad-secp256k1",
           "ppad-nixpkgs"
         ],
         "ppad-sha256": [
+          "ppad-secp256k1",
           "ppad-sha256"
         ],
         "ppad-sha512": [
+          "ppad-secp256k1",
           "ppad-sha512"
         ]
       },
@@ -213,11 +219,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1750583200,
-        "narHash": "sha256-nVW/anVOzCiMcRmqQlbmT0LRmT6XjCKSH6DxubhL/sI=",
+        "lastModified": 1766442965,
+        "narHash": "sha256-wsspQAyMf+vXLpYY/hk05IgsNcb1KPeIxwKzV16zAZM=",
         "ref": "master",
-        "rev": "84eaa4264fe5e638004ea42d2dedbc2d12b1df91",
-        "revCount": 27,
+        "rev": "4fe3998c0d94dea7e059602747413d5825e34330",
+        "revCount": 28,
         "type": "git",
         "url": "git://git.ppad.tech/ripemd160.git"
       },
@@ -245,9 +251,7 @@
         "ppad-fixed": [
           "ppad-fixed"
         ],
-        "ppad-hmac-drbg": [
-          "ppad-hmac-drbg"
-        ],
+        "ppad-hmac-drbg": "ppad-hmac-drbg",
         "ppad-nixpkgs": [
           "ppad-nixpkgs"
         ],
@@ -354,7 +358,6 @@
         "ppad-base16": "ppad-base16",
         "ppad-base58": "ppad-base58",
         "ppad-fixed": "ppad-fixed",
-        "ppad-hmac-drbg": "ppad-hmac-drbg",
         "ppad-nixpkgs": "ppad-nixpkgs",
         "ppad-ripemd160": "ppad-ripemd160",
         "ppad-secp256k1": "ppad-secp256k1",

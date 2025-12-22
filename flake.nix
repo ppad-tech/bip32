@@ -13,15 +13,6 @@
       ref  = "master";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
     };
-    ppad-hmac-drbg = {
-      type = "git";
-      url  = "git://git.ppad.tech/hmac-drbg.git";
-      ref  = "master";
-      inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
-      inputs.ppad-base16.follows = "ppad-base16";
-      inputs.ppad-sha256.follows = "ppad-sha256";
-      inputs.ppad-sha512.follows = "ppad-sha512";
-    };
     ppad-base58 = {
       type = "git";
       url  = "git://git.ppad.tech/base58.git";
@@ -64,7 +55,6 @@
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
       inputs.ppad-base16.follows = "ppad-base16";
       inputs.ppad-fixed.follows = "ppad-fixed";
-      inputs.ppad-hmac-drbg.follows = "ppad-hmac-drbg";
       inputs.ppad-sha256.follows = "ppad-sha256";
       inputs.ppad-sha512.follows = "ppad-sha512";
     };
