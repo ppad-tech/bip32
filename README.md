@@ -54,35 +54,39 @@ Current benchmark figures on an M4 Silicon MacBook Air look like (use
 
 ```
   benchmarking ppad-bip32 (wNAF)/derive_child_pub'
-  time                 184.0 μs   (183.9 μs .. 184.2 μs)
+  time                 180.7 μs   (180.6 μs .. 180.9 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 184.2 μs   (184.1 μs .. 184.4 μs)
-  std dev              502.2 ns   (282.7 ns .. 986.8 ns)
+  mean                 180.8 μs   (180.6 μs .. 180.9 μs)
+  std dev              493.6 ns   (382.1 ns .. 639.6 ns)
 
   benchmarking ppad-bip32 (wNAF)/derive_child_priv'
-  time                 170.4 μs   (170.3 μs .. 170.6 μs)
+  time                 167.0 μs   (166.8 μs .. 167.2 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 170.6 μs   (170.5 μs .. 170.7 μs)
-  std dev              430.8 ns   (314.5 ns .. 600.4 ns)
+  mean                 167.0 μs   (166.8 μs .. 167.2 μs)
+  std dev              667.4 ns   (488.1 ns .. 925.3 ns)
 
   benchmarking ppad-bip32/xpub
-  time                 151.4 μs   (151.2 μs .. 151.6 μs)
+  time                 149.6 μs   (149.1 μs .. 150.2 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 151.1 μs   (150.9 μs .. 151.3 μs)
-  std dev              608.5 ns   (449.2 ns .. 919.9 ns)
+  mean                 149.3 μs   (149.0 μs .. 149.9 μs)
+  std dev              1.296 μs   (653.2 ns .. 2.117 μs)
 
   benchmarking ppad-bip32/xprv
-  time                 8.374 μs   (8.363 μs .. 8.386 μs)
+  time                 6.512 μs   (6.506 μs .. 6.519 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 8.390 μs   (8.379 μs .. 8.409 μs)
-  std dev              47.10 ns   (31.45 ns .. 76.90 ns)
+  mean                 6.512 μs   (6.507 μs .. 6.520 μs)
+  std dev              19.72 ns   (12.91 ns .. 34.71 ns)
 
   benchmarking ppad-bip32/parse
-  time                 8.576 μs   (8.573 μs .. 8.580 μs)
+  time                 6.905 μs   (6.899 μs .. 6.913 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 8.567 μs   (8.559 μs .. 8.574 μs)
-  std dev              25.37 ns   (21.07 ns .. 30.30 ns)
+  mean                 6.926 μs   (6.919 μs .. 6.933 μs)
+  std dev              23.14 ns   (18.74 ns .. 28.17 ns)
 ```
+
+You should compile with the 'llvm' flag (and ensure [ppad-fixed][fixed],
+[ppad-sha256][sha256], [ppad-sha512][sha512], and [ppad-secp256k1][secp]
+are compiled with the 'llvm' flag) for maximum performance.
 
 ## Security
 

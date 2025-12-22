@@ -81,6 +81,18 @@
             (hlib.enableCabalFlag fixed "llvm")
             [ llvm ];
 
+        sha256 = ppad-sha256.packages.${system}.default;
+        sha256-llvm =
+          hlib.addBuildTools
+            (hlib.enableCabalFlag sha256 "llvm")
+            [ llvm ];
+
+        sha512 = ppad-sha512.packages.${system}.default;
+        sha512-llvm =
+          hlib.addBuildTools
+            (hlib.enableCabalFlag sha512 "llvm")
+            [ llvm ];
+
         secp256k1 = ppad-secp256k1.packages.${system}.default;
         secp256k1-llvm =
           hlib.addBuildTools
@@ -93,8 +105,8 @@
           ppad-fixed = fixed-llvm;
           ppad-ripemd160 = ppad-ripemd160.packages.${system}.default;
           ppad-secp256k1 = secp256k1-llvm;
-          ppad-sha256 = ppad-sha256.packages.${system}.default;
-          ppad-sha512 = ppad-sha512.packages.${system}.default;
+          ppad-sha256 = sha256-llvm;
+          ppad-sha512 = sha512-llvm;
           ${lib} = new.callCabal2nix lib ./. {
             ppad-base16 = new.ppad-base16;
             ppad-base58 = new.ppad-base58;
