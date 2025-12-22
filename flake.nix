@@ -88,14 +88,22 @@
             [ llvm ];
 
         hpkgs = pkgs.haskell.packages.ghc981.extend (new: old: {
-          ${lib} = old.callCabal2nixWithOptions lib ./. "--enable-profiling" {};
-          ppad-sha256 = ppad-sha256.packages.${system}.default;
-          ppad-sha512 = ppad-sha512.packages.${system}.default;
-          ppad-ripemd160 = ppad-ripemd160.packages.${system}.default;
-          ppad-fixed = fixed-llvm;
           ppad-base16 = ppad-base16.packages.${system}.default;
           ppad-base58 = ppad-base58.packages.${system}.default;
+          ppad-fixed = fixed-llvm;
+          ppad-ripemd160 = ppad-ripemd160.packages.${system}.default;
           ppad-secp256k1 = secp256k1-llvm;
+          ppad-sha256 = ppad-sha256.packages.${system}.default;
+          ppad-sha512 = ppad-sha512.packages.${system}.default;
+          ${lib} = new.callCabal2nix lib ./. {
+            ppad-base16 = new.ppad-base16;
+            ppad-base58 = new.ppad-base58;
+            ppad-fixed = new.ppad-fixed;
+            ppad-ripemd160 = new.ppad-ripemd160;
+            ppad-secp256k1 = new.ppad-secp256k1;
+            ppad-sha256 = new.ppad-sha256;
+            ppad-sha512 = new.ppad-sha512;
+          };
         });
 
         cc    = pkgs.stdenv.cc;
