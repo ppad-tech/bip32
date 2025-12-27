@@ -79,10 +79,12 @@ import qualified Data.ByteString.Base58Check as B58C
 import qualified Data.ByteString.Builder as BSB
 import qualified Data.ByteString.Internal as BI
 import qualified Data.ByteString.Unsafe as BU
+import qualified Data.Choice as C
 import Data.Word (Word8, Word32)
 import Data.Word.Limb (Limb(..))
 import qualified Data.Word.Limb as L
 import Data.Word.Wider (Wider(..))
+import qualified Data.Word.Wider as W
 import qualified Foreign.Storable as Storable (pokeByteOff)
 import qualified GHC.Exts as Exts
 import GHC.Generics
@@ -258,7 +260,7 @@ xpub_cod (XPub (X _ cod)) = cod
 
 -- | An extended private key.
 newtype XPrv = XPrv (X Wider)
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
 
 -- | Read the raw private key from an 'XPrv'.
 xprv_key :: XPrv -> Wider
@@ -328,7 +330,8 @@ ckd_priv _xprv@(XPrv (X sec cod)) i =
         (il, ci) = BS.splitAt 32 l
         pil = unsafe_roll32 il -- safe due to 512-bit hmac
         ki  = S.from (S.to pil + S.to sec)
-    in  if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negl
+        com = W.cmp_vartime pil Secp256k1._CURVE_Q
+    in  if   com /= LT || W.eq_vartime ki 0 -- negl
         then ckd_priv _xprv (succ i)
         else XPrv (X ki ci)
   where
@@ -348,8 +351,9 @@ ckd_pub _xpub@(XPub (X pub cod)) i
           (il, ci) = BS.splitAt 32 l
           pil = unsafe_roll32 il -- safe due to 512-bit hmac
       pt <- Secp256k1.mul_vartime Secp256k1._CURVE_G pil
-      let  ki = pt `Secp256k1.add` pub
-      if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
+      let  ki  = pt `Secp256k1.add` pub
+           com = W.cmp_vartime pil Secp256k1._CURVE_Q
+      if   com /= LT || ki == Secp256k1._CURVE_ZERO -- negl
       then ckd_pub _xpub (succ i)
       else pure (XPub (X ki ci))
 
@@ -369,7 +373,8 @@ ckd_priv' ctx _xprv@(XPrv (X sec cod)) i =
         (il, ci) = BS.splitAt 32 l
         pil = unsafe_roll32 il -- safe due to 512-bit hmac
         ki  = S.from (S.to pil + S.to sec)
-    in  if   pil >= Secp256k1._CURVE_Q || ki == 0 -- negl
+        com = W.cmp_vartime pil Secp256k1._CURVE_Q
+    in  if   com /= LT || W.eq_vartime ki 0 -- negl
         then ckd_priv' ctx _xprv (succ i)
         else XPrv (X ki ci)
   where
@@ -391,7 +396,8 @@ ckd_pub' ctx _xpub@(XPub (X pub cod)) i
           pil = unsafe_roll32 il -- safe due to 512-bit hmac
       pt <- Secp256k1.mul_wnaf ctx pil
       let  ki = pt `Secp256k1.add` pub
-      if   pil >= Secp256k1._CURVE_Q || ki == Secp256k1._CURVE_ZERO -- negl
+           com = W.cmp_vartime pil Secp256k1._CURVE_Q
+      if   com /= LT || ki == Secp256k1._CURVE_ZERO -- negl
       then ckd_pub' ctx _xpub (succ i)
       else pure (XPub (X ki ci))
 
@@ -413,7 +419,7 @@ data HDKey = HDKey {
   , hd_parent :: !BS.ByteString      -- ^ parent fingerprint
   , hd_child  :: !BS.ByteString      -- ^ index or child number
   }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Generic)
 
 instance Extended HDKey where
   identifier (HDKey ekey _ _ _) = case ekey of
@@ -748,7 +754,9 @@ parse b58 = do
         Prv -> do
           (b, unsafe_roll32 -> prv) <- BS.uncons key -- safe, guarded keylen
           guard (b == 0)
-          guard (prv > 0 && prv < Secp256k1._CURVE_Q)
+          let com0 = W.gt prv 0
+              com1 = W.lt prv Secp256k1._CURVE_Q
+          guard (C.decide (C.and com0 com1))
           let hd_key = Right (XPrv (X prv cod))
           pure HDKey {..}
       guard (valid_lineage hd)

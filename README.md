@@ -54,16 +54,16 @@ Current benchmark figures on an M4 Silicon MacBook Air look like (use
 
 ```
   benchmarking ppad-bip32 (wNAF)/derive_child_pub'
-  time                 180.7 μs   (180.6 μs .. 180.9 μs)
+  time                 211.1 μs   (210.9 μs .. 211.5 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 180.8 μs   (180.6 μs .. 180.9 μs)
-  std dev              493.6 ns   (382.1 ns .. 639.6 ns)
+  mean                 212.0 μs   (211.6 μs .. 212.3 μs)
+  std dev              1.164 μs   (1.001 μs .. 1.336 μs)
 
   benchmarking ppad-bip32 (wNAF)/derive_child_priv'
-  time                 167.0 μs   (166.8 μs .. 167.2 μs)
+  time                 184.5 μs   (183.1 μs .. 185.7 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 167.0 μs   (166.8 μs .. 167.2 μs)
-  std dev              667.4 ns   (488.1 ns .. 925.3 ns)
+  mean                 183.6 μs   (183.3 μs .. 184.1 μs)
+  std dev              1.346 μs   (907.9 ns .. 2.111 μs)
 
   benchmarking ppad-bip32/xpub
   time                 149.6 μs   (149.1 μs .. 150.2 μs)
@@ -78,10 +78,10 @@ Current benchmark figures on an M4 Silicon MacBook Air look like (use
   std dev              19.72 ns   (12.91 ns .. 34.71 ns)
 
   benchmarking ppad-bip32/parse
-  time                 6.905 μs   (6.899 μs .. 6.913 μs)
+  time                 6.746 μs   (6.739 μs .. 6.753 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 6.926 μs   (6.919 μs .. 6.933 μs)
-  std dev              23.14 ns   (18.74 ns .. 28.17 ns)
+  mean                 6.764 μs   (6.754 μs .. 6.777 μs)
+  std dev              37.04 ns   (27.90 ns .. 51.11 ns)
 ```
 
 You should compile with the 'llvm' flag (and ensure [ppad-fixed][fixed],

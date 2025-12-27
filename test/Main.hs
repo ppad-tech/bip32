@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns -fno-warn-orphans #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -6,8 +6,21 @@ module Main where
 import Crypto.HDKey.BIP32
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
+import qualified Data.Word.Wider as W
 import Test.Tasty
 import qualified Test.Tasty.HUnit as H
+
+instance Eq XPrv where
+  x1 == x2 = W.eq_vartime (xprv_key x1) (xprv_key x2)
+          && xprv_cod x1 == xprv_cod x2
+
+instance Eq HDKey where
+  HDKey k1 d1 p1 c1 == HDKey k2 d2 p2 c2 =
+    eqKey k1 k2 && d1 == d2 && p1 == p2 && c1 == c2
+    where
+      eqKey (Left a) (Left b) = a == b
+      eqKey (Right a) (Right b) = a == b
+      eqKey _ _ = False
 
 -- for testing
 xprv_partial :: HDKey -> BS.ByteString
