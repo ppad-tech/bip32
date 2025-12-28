@@ -88,11 +88,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1766446326,
-        "narHash": "sha256-4uqWsys2juR70nainA6ykVVLmnbVO2nGk2DilIPlYdo=",
+        "lastModified": 1766936673,
+        "narHash": "sha256-OWxKSeRQ0+Wt+Qy62ygGiCNY/1OsejuOnUCLlozIzuM=",
         "ref": "master",
-        "rev": "9aec2633bffce9944bb9647b58abe5072e5834a8",
-        "revCount": 30,
+        "rev": "8de88f527e0c87264aecae4f4f0d13c524abf726",
+        "revCount": 31,
         "type": "git",
         "url": "git://git.ppad.tech/base58.git"
       },

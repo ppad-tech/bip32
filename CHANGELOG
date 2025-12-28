@@ -1,5 +1,8 @@
 # Changelog
 
+- 0.3.2 (2025-12-28)
+  * Upgrades to newer dependencies and tests with GHC 9.10.3.
+
 - 0.3.1 (2025-12-27)
   * Upgrades to ppad-fixed v0.1.2 and ppad-secp256k1 v0.5.1.
 
