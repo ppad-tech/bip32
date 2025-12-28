@@ -8,7 +8,7 @@ author:             Jared Tobin
 maintainer:         jared@ppad.tech
 category:           Cryptography
 build-type:         Simple
-tested-with:        GHC == 9.8.1
+tested-with:        GHC == 9.10.3
 extra-doc-files:    CHANGELOG
 description:
   [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)

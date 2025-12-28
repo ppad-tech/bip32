@@ -73,7 +73,7 @@
 
         pkgs = import nixpkgs { inherit system; };
         hlib = pkgs.haskell.lib;
-        llvm = pkgs.llvmPackages_15.llvm;
+        llvm = pkgs.llvmPackages_19.llvm;
 
         fixed = ppad-fixed.packages.${system}.default;
         fixed-llvm =
@@ -99,11 +99,29 @@
             (hlib.enableCabalFlag secp256k1 "llvm")
             [ llvm ];
 
-        hpkgs = pkgs.haskell.packages.ghc981.extend (new: old: {
-          ppad-base16 = ppad-base16.packages.${system}.default;
-          ppad-base58 = ppad-base58.packages.${system}.default;
+        base16 = ppad-base16.packages.${system}.default;
+        base16-llvm =
+          hlib.addBuildTools
+            (hlib.enableCabalFlag base16 "llvm")
+            [ llvm ];
+
+        base58 = ppad-base58.packages.${system}.default;
+        base58-llvm =
+          hlib.addBuildTools
+            (hlib.enableCabalFlag base58 "llvm")
+            [ llvm ];
+
+        ripemd160 = ppad-ripemd160.packages.${system}.default;
+        ripemd160-llvm =
+          hlib.addBuildTools
+            (hlib.enableCabalFlag ripemd160 "llvm")
+            [ llvm ];
+
+        hpkgs = pkgs.haskell.packages.ghc910.extend (new: old: {
+          ppad-base16 = base16-llvm;
+          ppad-base58 = base58-llvm;
           ppad-fixed = fixed-llvm;
-          ppad-ripemd160 = ppad-ripemd160.packages.${system}.default;
+          ppad-ripemd160 = ripemd160-llvm;
           ppad-secp256k1 = secp256k1-llvm;
           ppad-sha256 = sha256-llvm;
           ppad-sha512 = sha512-llvm;
