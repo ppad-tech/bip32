@@ -48,6 +48,15 @@
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
       inputs.ppad-base16.follows = "ppad-base16";
     };
+    ppad-hmac-drbg = {
+      type = "git";
+      url  = "git://git.ppad.tech/hmac-drbg.git";
+      ref  = "master";
+      inputs.ppad-sha256.follows = "ppad-sha256";
+      inputs.ppad-sha512.follows = "ppad-sha512";
+      inputs.ppad-base16.follows = "ppad-base16";
+      inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
+    };
     ppad-secp256k1 = {
       type = "git";
       url  = "git://git.ppad.tech/secp256k1.git";
@@ -55,6 +64,7 @@
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
       inputs.ppad-base16.follows = "ppad-base16";
       inputs.ppad-fixed.follows = "ppad-fixed";
+      inputs.ppad-hmac-drbg.follows = "ppad-hmac-drbg";
       inputs.ppad-sha256.follows = "ppad-sha256";
       inputs.ppad-sha512.follows = "ppad-sha512";
     };
@@ -66,6 +76,7 @@
             , ppad-fixed
             , ppad-sha256, ppad-sha512, ppad-ripemd160
             , ppad-base16, ppad-base58
+            , ppad-hmac-drbg
             , ppad-secp256k1 }:
     flake-utils.lib.eachDefaultSystem (system:
       let

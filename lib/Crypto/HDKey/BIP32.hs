@@ -318,7 +318,7 @@ _master seed@(BI.PS _ _ l)
   | l < 16 = Nothing
   | l > 64 = Nothing
   | otherwise = do
-      let i = SHA512.hmac "Bitcoin seed" seed
+      let SHA512.MAC i = SHA512.hmac "Bitcoin seed" seed
           (il, c) = BS.splitAt 32 i
           s = unsafe_roll32 il -- safe due to 512-bit hmac
       pure $! (XPrv (X s c))
@@ -326,7 +326,7 @@ _master seed@(BI.PS _ _ l)
 -- private parent key -> private child key
 ckd_priv :: XPrv -> Word32 -> XPrv
 ckd_priv _xprv@(XPrv (X sec cod)) i =
-    let l = SHA512.hmac cod dat
+    let SHA512.MAC l = SHA512.hmac cod dat
         (il, ci) = BS.splitAt 32 l
         pil = unsafe_roll32 il -- safe due to 512-bit hmac
         ki  = S.from (S.to pil + S.to sec)
@@ -347,7 +347,7 @@ ckd_pub _xpub@(XPub (X pub cod)) i
   | hardened i = Nothing
   | otherwise = do
       let dat = Secp256k1.serialize_point pub <> ser32 i
-          l   = SHA512.hmac cod dat
+          SHA512.MAC l = SHA512.hmac cod dat
           (il, ci) = BS.splitAt 32 l
           pil = unsafe_roll32 il -- safe due to 512-bit hmac
       pt <- Secp256k1.mul_vartime Secp256k1._CURVE_G pil
@@ -369,7 +369,7 @@ n (XPrv (X sec cod)) = case Secp256k1.mul Secp256k1._CURVE_G sec of
 --   calculations.
 ckd_priv' :: Context -> XPrv -> Word32 -> XPrv
 ckd_priv' ctx _xprv@(XPrv (X sec cod)) i =
-    let l = SHA512.hmac cod dat
+    let SHA512.MAC l = SHA512.hmac cod dat
         (il, ci) = BS.splitAt 32 l
         pil = unsafe_roll32 il -- safe due to 512-bit hmac
         ki  = S.from (S.to pil + S.to sec)
@@ -391,7 +391,7 @@ ckd_pub' ctx _xpub@(XPub (X pub cod)) i
   | hardened i = Nothing
   | otherwise = do
       let dat = Secp256k1.serialize_point pub <> ser32 i
-          l   = SHA512.hmac cod dat
+          SHA512.MAC l = SHA512.hmac cod dat
           (il, ci) = BS.splitAt 32 l
           pil = unsafe_roll32 il -- safe due to 512-bit hmac
       pt <- Secp256k1.mul_wnaf ctx pil
