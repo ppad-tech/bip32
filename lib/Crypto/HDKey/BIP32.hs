@@ -72,7 +72,7 @@ import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Crypto.Hash.SHA512 as SHA512
 import qualified Crypto.Hash.RIPEMD160 as RIPEMD160
 import qualified Crypto.Curve.Secp256k1 as Secp256k1
-import Data.Bits ((.>>.), (.&.))
+import Data.Bits ((.>>.))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Base58Check as B58C
@@ -236,13 +236,12 @@ unroll32 (Wider (# w0, w1, w2, w3 #)) =
 
 -- serialize a 32-bit word, MSB first
 ser32 :: Word32 -> BS.ByteString
-ser32 w =
-  let !mask = 0b00000000_00000000_00000000_11111111
-      !w0 = fi (w .>>. 24) .&. mask
-      !w1 = fi (w .>>. 16) .&. mask
-      !w2 = fi (w .>>. 08) .&. mask
-      !w3 = fi w .&. mask
-  in  BS.cons w0 (BS.cons w1 (BS.cons w2 (BS.singleton w3)))
+ser32 w = BI.unsafeCreate 4 $ \ptr -> do
+  Storable.pokeByteOff ptr 0 (fi (w .>>. 24) :: Word8)
+  Storable.pokeByteOff ptr 1 (fi (w .>>. 16) :: Word8)
+  Storable.pokeByteOff ptr 2 (fi (w .>>. 08) :: Word8)
+  Storable.pokeByteOff ptr 3 (fi w :: Word8)
+{-# INLINABLE ser32 #-}
 
 -- extended keys --------------------------------------------------------------
 
