@@ -1,5 +1,8 @@
 # Changelog
 
+- 0.3.4 (2026-02-25)
+  * Bumps the ppad-sha{256,512} and ppad-secp256k1 dependencies.
+
 - 0.3.3 (2026-01-10)
   * Bumps the ppad-sha{256,512} dependencies.
 
